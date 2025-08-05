@@ -233,6 +233,11 @@ namespace WuLangSpellcraft.Core
 
         public ElementType GetDominantElement()
         {
+            if (!Talismans.Any())
+            {
+                return ElementType.Void; // Default element for empty circles
+            }
+
             var elementCounts = Talismans
                 .GroupBy(t => t.PrimaryElement.Type)
                 .ToDictionary(g => g.Key, g => g.Sum(t => t.PowerLevel));

@@ -119,10 +119,13 @@ namespace WuLangSpellcraft.Renderer.Controls
                 return;
             }
 
-            // Draw background circle
+            // Draw main circle background
             DrawBackgroundCircle(canvas);
 
-            // Draw connections first (so they appear behind talismans)
+            // Draw nested circles first (so they appear inside the main circle)
+            DrawNestedCircles(canvas);
+
+            // Draw connections (so they appear behind talismans)
             if (ShowConnections)
             {
                 DrawConnections(canvas);
@@ -269,6 +272,126 @@ namespace WuLangSpellcraft.Renderer.Controls
 
                 canvas.Children.Add(line);
             }
+        }
+
+        private void DrawNestedCircles(Canvas canvas)
+        {
+            if (MagicCircle?.NestedCircles == null || !MagicCircle.NestedCircles.Any()) return;
+
+            var centerX = Width / 2;
+            var centerY = Height / 2;
+            var mainVisualRadius = GetVisualCircleRadius();
+
+            foreach (var nestedCircle in MagicCircle.NestedCircles)
+            {
+                // Calculate nested circle visual radius based on its actual radius and nesting scale
+                var nestedScale = nestedCircle.NestedScale > 0 ? nestedCircle.NestedScale : 0.6;
+                var nestedVisualRadius = Math.Max(20, nestedCircle.Radius * BasePixelsPerUnit * nestedScale);
+                
+                // Ensure nested circle fits within the main circle
+                if (nestedVisualRadius > mainVisualRadius * 0.8)
+                {
+                    nestedVisualRadius = mainVisualRadius * 0.8;
+                }
+
+                // Draw nested circle background
+                var nestedBackground = new Ellipse
+                {
+                    Width = nestedVisualRadius * 2,
+                    Height = nestedVisualRadius * 2,
+                    Stroke = GetNestedCircleBrush(nestedCircle),
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent,
+                    Opacity = 0.8
+                };
+
+                Canvas.SetLeft(nestedBackground, centerX - nestedVisualRadius);
+                Canvas.SetTop(nestedBackground, centerY - nestedVisualRadius);
+                canvas.Children.Add(nestedBackground);
+
+                // Draw nested circle inner border
+                var nestedInner = new Ellipse
+                {
+                    Width = (nestedVisualRadius - 10) * 2,
+                    Height = (nestedVisualRadius - 10) * 2,
+                    Stroke = GetNestedCircleBrush(nestedCircle),
+                    StrokeThickness = 1,
+                    Fill = Brushes.Transparent,
+                    Opacity = 0.5
+                };
+
+                Canvas.SetLeft(nestedInner, centerX - (nestedVisualRadius - 10));
+                Canvas.SetTop(nestedInner, centerY - (nestedVisualRadius - 10));
+                canvas.Children.Add(nestedInner);
+
+                // Draw nested circle's talismans
+                DrawNestedTalismans(canvas, nestedCircle, centerX, centerY, nestedVisualRadius);
+
+                // Add nested circle label
+                var nestedLabel = new TextBlock
+                {
+                    Text = nestedCircle.Name,
+                    FontSize = 8,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center,
+                    Effect = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        Color = Colors.Black,
+                        BlurRadius = 2,
+                        ShadowDepth = 1
+                    }
+                };
+
+                Canvas.SetLeft(nestedLabel, centerX - 30);
+                Canvas.SetTop(nestedLabel, centerY + nestedVisualRadius + 5);
+                canvas.Children.Add(nestedLabel);
+            }
+        }
+
+        private void DrawNestedTalismans(Canvas canvas, MagicCircle nestedCircle, double centerX, double centerY, double nestedRadius)
+        {
+            if (!nestedCircle.Talismans.Any()) return;
+
+            var maxNestedTalismans = Math.Max(3, (int)(2 * Math.PI * nestedCircle.Radius / 2.0));
+            var talismanSize = Math.Max(20, nestedRadius / 4); // Smaller talismans for nested circles
+            var talismanPlacementRadius = nestedRadius * 0.7; // Place talismans slightly inside the nested circle
+
+            for (int i = 0; i < nestedCircle.Talismans.Count && i < maxNestedTalismans; i++)
+            {
+                var talisman = nestedCircle.Talismans[i];
+                var angle = (i * 360.0 / maxNestedTalismans - 90) * Math.PI / 180;
+                var x = centerX + Math.Cos(angle) * talismanPlacementRadius;
+                var y = centerY + Math.Sin(angle) * talismanPlacementRadius;
+
+                // Create a simple talisman representation for nested circles
+                var talismanShape = new Ellipse
+                {
+                    Width = talismanSize,
+                    Height = talismanSize,
+                    Fill = GetBrushForElement(talisman.PrimaryElement.Type),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1,
+                    Opacity = 0.9
+                };
+
+                Canvas.SetLeft(talismanShape, x - talismanSize / 2);
+                Canvas.SetTop(talismanShape, y - talismanSize / 2);
+                canvas.Children.Add(talismanShape);
+            }
+        }
+
+        private Brush GetNestedCircleBrush(MagicCircle nestedCircle)
+        {
+            if (!nestedCircle.Talismans.Any()) return Brushes.DarkGray;
+
+            var dominantElement = nestedCircle.Talismans
+                .GroupBy(t => t.PrimaryElement.Type)
+                .OrderByDescending(g => g.Count())
+                .FirstOrDefault()?.Key ?? ElementType.Void;
+
+            return GetBrushForElement(dominantElement);
         }
 
         private void DrawTalismans(Canvas canvas)

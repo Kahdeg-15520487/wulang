@@ -23,8 +23,9 @@ namespace WuLangSpellcraft.Renderer.Controls
 
         public TalismanControl()
         {
-            Width = 60;
-            Height = 60;
+            // Increase the control size to accommodate secondary elements
+            Width = 90;  // Increased from 60 to 90
+            Height = 90; // Increased from 60 to 90
             ClipToBounds = false; // Allow the full talisman to be visible
             RenderTalisman();
         }
@@ -80,12 +81,14 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             var ellipse = new Ellipse
             {
-                Width = Width - 4,
-                Height = Height - 4,
+                Width = 50,  // Match the background shape size
+                Height = 50,
                 Stroke = Brushes.Gray,
                 StrokeThickness = 2,
                 StrokeDashArray = new DoubleCollection { 5, 5 },
-                Fill = Brushes.Transparent
+                Fill = Brushes.Transparent,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
 
             return ellipse;
@@ -96,11 +99,14 @@ namespace WuLangSpellcraft.Renderer.Controls
             if (Talisman == null) return new Ellipse();
 
             var shape = GetShapeForElement(Talisman.PrimaryElement.Type);
-            shape.Width = Width - 4;
-            shape.Height = Height - 4;
+            // Keep the background shape centered but smaller than the full control
+            shape.Width = 50;  // Fixed size for the main talisman shape
+            shape.Height = 50;
             shape.Fill = GetBrushForElement(Talisman.PrimaryElement.Type, 0.3);
             shape.Stroke = GetBrushForElement(Talisman.PrimaryElement.Type, 1.0);
             shape.StrokeThickness = 3;
+            shape.HorizontalAlignment = HorizontalAlignment.Center;
+            shape.VerticalAlignment = VerticalAlignment.Center;
             
             // Add glow effect for active talismans
             if (Talisman.PrimaryElement.IsActive)
@@ -150,9 +156,9 @@ namespace WuLangSpellcraft.Renderer.Controls
                 var symbol = CreateElementSymbol(element, 0.5);
                 symbol.FontSize = 12;
                 
-                // Position secondary elements around the edge
+                // Position secondary elements around the edge with enough space
                 var angle = (i * 120) * Math.PI / 180; // 120 degrees apart
-                var radius = 25;
+                var radius = 30; // Increased radius to utilize the larger control size
                 var x = Math.Cos(angle) * radius;
                 var y = Math.Sin(angle) * radius;
                 
@@ -204,11 +210,22 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             return elementType switch
             {
+                // Base Elements
                 ElementType.Water => new Ellipse(), // Circle for flow
                 ElementType.Fire => CreateTriangle(), // Triangle for energy
                 ElementType.Earth => new Rectangle(), // Square for stability
                 ElementType.Metal => CreateDiamond(), // Diamond for precision
                 ElementType.Wood => CreateHexagon(), // Hexagon for growth
+                
+                // Derived Elements
+                ElementType.Lightning => CreateZigzag(), // Zigzag for electricity
+                ElementType.Wind => CreateSpiral(), // Spiral for air currents
+                ElementType.Light => CreateStar(), // Star for radiance
+                ElementType.Dark => CreateCrescent(), // Crescent for shadow
+                ElementType.Forge => CreateAnvil(), // Anvil shape for crafting
+                ElementType.Chaos => CreateIrregular(), // Irregular shape for chaos
+                ElementType.Void => CreateVoid(), // Empty ring for void
+                
                 _ => new Ellipse()
             };
         }
@@ -217,7 +234,7 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             var polygon = new Polygon();
             var points = new PointCollection();
-            var size = Width - 4;
+            var size = 50; // Fixed size to match background shape
             var center = size / 2;
             var radius = center * 0.8;
             
@@ -231,6 +248,8 @@ namespace WuLangSpellcraft.Renderer.Controls
             }
             
             polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
             return polygon;
         }
 
@@ -238,7 +257,7 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             var polygon = new Polygon();
             var points = new PointCollection();
-            var size = Width - 4;
+            var size = 50; // Fixed size to match background shape
             var center = size / 2;
             var radius = center * 0.8;
             
@@ -249,6 +268,8 @@ namespace WuLangSpellcraft.Renderer.Controls
             points.Add(new Point(center - radius, center)); // Left
             
             polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
             return polygon;
         }
 
@@ -256,7 +277,7 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             var polygon = new Polygon();
             var points = new PointCollection();
-            var size = Width - 4;
+            var size = 50; // Fixed size to match background shape
             var center = size / 2;
             var radius = center * 0.8;
             
@@ -270,7 +291,245 @@ namespace WuLangSpellcraft.Renderer.Controls
             }
             
             polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
             return polygon;
+        }
+
+        private Shape CreateZigzag()
+        {
+            var polygon = new Polygon();
+            var points = new PointCollection();
+            var size = 50;
+            var center = size / 2;
+            var width = center * 1.2;
+            var height = center * 1.6;
+            
+            // Lightning bolt zigzag pattern
+            points.Add(new Point(center - width/4, center - height/2));
+            points.Add(new Point(center + width/8, center - height/4));
+            points.Add(new Point(center - width/8, center - height/8));
+            points.Add(new Point(center + width/4, center + height/8));
+            points.Add(new Point(center, center + height/4));
+            points.Add(new Point(center + width/6, center));
+            points.Add(new Point(center - width/6, center + height/6));
+            points.Add(new Point(center - width/3, center - height/6));
+            
+            polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
+            return polygon;
+        }
+
+        private Shape CreateSpiral()
+        {
+            var path = new Path();
+            var geometry = new PathGeometry();
+            var figure = new PathFigure();
+            var size = 50;
+            var center = size / 2;
+            var radius = center * 0.7;
+            
+            // Start from center and spiral outward
+            figure.StartPoint = new Point(center, center);
+            
+            // Create spiral using arcs
+            for (int i = 0; i < 3; i++)
+            {
+                var currentRadius = radius * (i + 1) / 3;
+                var arc = new ArcSegment
+                {
+                    Point = new Point(center + currentRadius * Math.Cos(i * Math.PI), 
+                                    center + currentRadius * Math.Sin(i * Math.PI)),
+                    Size = new Size(currentRadius, currentRadius),
+                    SweepDirection = SweepDirection.Clockwise,
+                    IsLargeArc = i > 0
+                };
+                figure.Segments.Add(arc);
+            }
+            
+            geometry.Figures.Add(figure);
+            path.Data = geometry;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
+        }
+
+        private Shape CreateStar()
+        {
+            var polygon = new Polygon();
+            var points = new PointCollection();
+            var size = 50;
+            var center = size / 2;
+            var outerRadius = center * 0.8;
+            var innerRadius = outerRadius * 0.4;
+            
+            // 5-pointed star
+            for (int i = 0; i < 10; i++)
+            {
+                var angle = (i * 36 - 90) * Math.PI / 180;
+                var radius = (i % 2 == 0) ? outerRadius : innerRadius;
+                var x = center + Math.Cos(angle) * radius;
+                var y = center + Math.Sin(angle) * radius;
+                points.Add(new Point(x, y));
+            }
+            
+            polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
+            return polygon;
+        }
+
+        private Shape CreateCrescent()
+        {
+            var path = new Path();
+            var geometry = new PathGeometry();
+            var figure = new PathFigure();
+            var size = 50;
+            var center = size / 2;
+            var radius = center * 0.8;
+            
+            // Crescent moon shape using two arcs
+            figure.StartPoint = new Point(center - radius * 0.3, center - radius * 0.8);
+            
+            // Outer arc (right side of crescent)
+            var outerArc = new ArcSegment
+            {
+                Point = new Point(center - radius * 0.3, center + radius * 0.8),
+                Size = new Size(radius, radius),
+                SweepDirection = SweepDirection.Clockwise,
+                IsLargeArc = true
+            };
+            figure.Segments.Add(outerArc);
+            
+            // Inner arc (left side of crescent)
+            var innerArc = new ArcSegment
+            {
+                Point = new Point(center - radius * 0.3, center - radius * 0.8),
+                Size = new Size(radius * 0.6, radius * 0.6),
+                SweepDirection = SweepDirection.Counterclockwise,
+                IsLargeArc = true
+            };
+            figure.Segments.Add(innerArc);
+            
+            geometry.Figures.Add(figure);
+            path.Data = geometry;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
+        }
+
+        private Shape CreateAnvil()
+        {
+            var polygon = new Polygon();
+            var points = new PointCollection();
+            var size = 50;
+            var center = size / 2;
+            var width = center * 1.4;
+            var height = center * 1.2;
+            
+            // Anvil shape - flat top with wider base
+            points.Add(new Point(center - width/3, center - height/2)); // Top left
+            points.Add(new Point(center + width/3, center - height/2)); // Top right
+            points.Add(new Point(center + width/2, center - height/4)); // Right shoulder
+            points.Add(new Point(center + width/2, center + height/4));  // Right side
+            points.Add(new Point(center + width/3, center + height/2));  // Bottom right
+            points.Add(new Point(center - width/3, center + height/2));  // Bottom left
+            points.Add(new Point(center - width/2, center + height/4));  // Left side
+            points.Add(new Point(center - width/2, center - height/4));  // Left shoulder
+            
+            polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
+            return polygon;
+        }
+
+        private Shape CreateIrregular()
+        {
+            var polygon = new Polygon();
+            var points = new PointCollection();
+            var size = 50;
+            var center = size / 2;
+            var baseRadius = center * 0.8;
+            
+            // Chaotic irregular shape with random-looking but deterministic points
+            var angles = new[] { 0, 45, 90, 135, 180, 225, 270, 315 };
+            var radiusVariations = new[] { 1.0, 0.6, 1.2, 0.8, 0.9, 1.1, 0.7, 1.3 };
+            
+            for (int i = 0; i < angles.Length; i++)
+            {
+                var angle = angles[i] * Math.PI / 180;
+                var radius = baseRadius * radiusVariations[i];
+                var x = center + Math.Cos(angle) * radius;
+                var y = center + Math.Sin(angle) * radius;
+                points.Add(new Point(x, y));
+            }
+            
+            polygon.Points = points;
+            polygon.HorizontalAlignment = HorizontalAlignment.Center;
+            polygon.VerticalAlignment = VerticalAlignment.Center;
+            return polygon;
+        }
+
+        private Shape CreateVoid()
+        {
+            var path = new Path();
+            var geometry = new PathGeometry();
+            var outerFigure = new PathFigure();
+            var innerFigure = new PathFigure();
+            var size = 50;
+            var center = size / 2;
+            var outerRadius = center * 0.8;
+            var innerRadius = center * 0.4;
+            
+            // Outer circle
+            outerFigure.StartPoint = new Point(center - outerRadius, center);
+            var outerArc1 = new ArcSegment
+            {
+                Point = new Point(center + outerRadius, center),
+                Size = new Size(outerRadius, outerRadius),
+                SweepDirection = SweepDirection.Clockwise,
+                IsLargeArc = true
+            };
+            var outerArc2 = new ArcSegment
+            {
+                Point = new Point(center - outerRadius, center),
+                Size = new Size(outerRadius, outerRadius),
+                SweepDirection = SweepDirection.Clockwise,
+                IsLargeArc = true
+            };
+            outerFigure.Segments.Add(outerArc1);
+            outerFigure.Segments.Add(outerArc2);
+            outerFigure.IsClosed = true;
+            
+            // Inner circle (void)
+            innerFigure.StartPoint = new Point(center - innerRadius, center);
+            var innerArc1 = new ArcSegment
+            {
+                Point = new Point(center + innerRadius, center),
+                Size = new Size(innerRadius, innerRadius),
+                SweepDirection = SweepDirection.Counterclockwise,
+                IsLargeArc = true
+            };
+            var innerArc2 = new ArcSegment
+            {
+                Point = new Point(center - innerRadius, center),
+                Size = new Size(innerRadius, innerRadius),
+                SweepDirection = SweepDirection.Counterclockwise,
+                IsLargeArc = true
+            };
+            innerFigure.Segments.Add(innerArc1);
+            innerFigure.Segments.Add(innerArc2);
+            innerFigure.IsClosed = true;
+            
+            geometry.Figures.Add(outerFigure);
+            geometry.Figures.Add(innerFigure);
+            geometry.FillRule = FillRule.EvenOdd; // Creates the void effect
+            
+            path.Data = geometry;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
         }
 
         private Brush GetBrushForElement(ElementType elementType, double opacity)

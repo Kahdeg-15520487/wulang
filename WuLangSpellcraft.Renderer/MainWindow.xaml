@@ -68,6 +68,27 @@
                         <!-- Circle Actions -->
                         <GroupBox Header="Circle Actions" Foreground="White" Margin="0,10,0,0">
                             <StackPanel>
+                                <!-- Circle Size Control -->
+                                <StackPanel Margin="0,0,0,10">
+                                    <TextBlock Text="Circle Size:" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Slider x:Name="CircleSizeSlider" Grid.Column="0"
+                                                Minimum="3" Maximum="20" Value="5" 
+                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                ValueChanged="CircleSizeSlider_ValueChanged"/>
+                                        <TextBlock x:Name="CircleSizeLabel" Grid.Column="1" 
+                                                   Text="5.0" Foreground="White" 
+                                                   VerticalAlignment="Center" Margin="10,0,0,0" Width="30"/>
+                                    </Grid>
+                                    <TextBlock x:Name="CircleCapacityLabel" 
+                                               Text="Max Talismans: 15" 
+                                               Foreground="LightGray" FontSize="10" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                
                                 <Button Content="Add Random Talisman" Click="AddRandomTalisman_Click" Margin="0,2" 
                                         Background="#FF007ACC" Foreground="White" BorderThickness="0" Padding="5"/>
                                 <Button Content="Clear Circle" Click="ClearCircle_Click" Margin="0,2"
@@ -83,18 +104,44 @@
             <!-- Splitter -->
             <GridSplitter Grid.Column="1" Width="5" Background="#FF3F3F46" VerticalAlignment="Stretch"/>
             
-            <!-- Main Canvas -->
+            <!-- Main Canvas with Zoom Support -->
             <Border Grid.Column="2" Background="#FF1E1E1E">
-                <ScrollViewer x:Name="CanvasScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Canvas x:Name="MainCanvas" Background="#FF2D2D30" Width="1000" Height="800">
-                        <!-- Circle will be added here dynamically -->
-                        <controls:MagicCircleControl x:Name="CircleViewer" 
-                                                   Canvas.Left="100" 
-                                                   Canvas.Top="100"
-                                                   ShowConnections="True"
-                                                   ShowEffects="True"/>
-                    </Canvas>
-                </ScrollViewer>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Zoom Controls -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,5" Background="#FF252526">
+                        <TextBlock Text="Zoom:" Foreground="White" VerticalAlignment="Center" Margin="5,0"/>
+                        <Slider x:Name="ZoomSlider" Width="150" 
+                                Minimum="0.25" Maximum="3.0" Value="1.0" 
+                                TickFrequency="0.25" IsSnapToTickEnabled="True"
+                                ValueChanged="ZoomSlider_ValueChanged" Margin="5,0"/>
+                        <TextBlock x:Name="ZoomLabel" Text="100%" Foreground="White" 
+                                   VerticalAlignment="Center" Margin="5,0" Width="40"/>
+                        <Button Content="Reset View" Click="ResetView_Click" 
+                                Background="#FF444444" Foreground="White" 
+                                BorderThickness="0" Padding="5,2" Margin="10,0"/>
+                    </StackPanel>
+                    
+                    <!-- Scrollable Canvas -->
+                    <ScrollViewer x:Name="CanvasScrollViewer" Grid.Row="1" 
+                                  HorizontalScrollBarVisibility="Auto" 
+                                  VerticalScrollBarVisibility="Auto">
+                        <Viewbox x:Name="CanvasViewbox" Stretch="Uniform">
+                            <Canvas x:Name="MainCanvas" Background="#FF2D2D30" Width="1500" Height="1200">
+                                <!-- Circle will be added here dynamically -->
+                                <controls:MagicCircleControl x:Name="CircleViewer" 
+                                                           Canvas.Left="200" 
+                                                           Canvas.Top="200"
+                                                           ShowConnections="True"
+                                                           ShowEffects="True"/>
+                            </Canvas>
+                        </Viewbox>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
         

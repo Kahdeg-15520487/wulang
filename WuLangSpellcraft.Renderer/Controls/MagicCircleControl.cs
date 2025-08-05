@@ -41,22 +41,57 @@ namespace WuLangSpellcraft.Renderer.Controls
             set => SetValue(ShowEffectsProperty, value);
         }
 
-        private const double CircleRadius = 120;
-        private const double TalismanSize = 60;
+        // Dynamic sizing constants
+        private const double BasePixelsPerUnit = 20; // 20 pixels per logical radius unit
+        private const double MinCircleRadius = 60;   // Minimum visual radius
+        private const double MaxCircleRadius = 300;  // Maximum visual radius
+        private const double BaseTalismanSize = 40;  // Base talisman size
         private const double CanvasPadding = 40;
 
         public MagicCircleControl()
         {
-            Width = (CircleRadius + TalismanSize + CanvasPadding) * 2;
-            Height = (CircleRadius + TalismanSize + CanvasPadding) * 2;
+            UpdateControlSize();
             ClipToBounds = false; // Allow talismans to be fully visible
             RenderMagicCircle();
+        }
+
+        private void UpdateControlSize()
+        {
+            var visualRadius = GetVisualCircleRadius();
+            var talismanSize = GetAdaptiveTalismanSize();
+            
+            Width = (visualRadius + talismanSize + CanvasPadding) * 2;
+            Height = (visualRadius + talismanSize + CanvasPadding) * 2;
+        }
+
+        private double GetVisualCircleRadius()
+        {
+            if (MagicCircle == null) return MinCircleRadius;
+            
+            var calculatedRadius = MagicCircle.Radius * BasePixelsPerUnit;
+            return Math.Max(MinCircleRadius, Math.Min(MaxCircleRadius, calculatedRadius));
+        }
+
+        private double GetAdaptiveTalismanSize()
+        {
+            if (MagicCircle == null) return BaseTalismanSize;
+            
+            var maxTalismans = GetMaxTalismansForCircle();
+            var visualRadius = GetVisualCircleRadius();
+            
+            // Calculate optimal talisman size based on circle circumference and talisman count
+            var availableCircumference = 2 * Math.PI * visualRadius;
+            var spacingPerTalisman = availableCircumference / Math.Max(1, maxTalismans);
+            var optimalSize = Math.Min(spacingPerTalisman * 0.7, BaseTalismanSize); // 70% of available space
+            
+            return Math.Max(20, Math.Min(BaseTalismanSize, optimalSize)); // Between 20-40 pixels
         }
 
         private static void OnMagicCircleChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is MagicCircleControl control)
             {
+                control.UpdateControlSize();
                 control.RenderMagicCircle();
             }
         }
@@ -110,10 +145,11 @@ namespace WuLangSpellcraft.Renderer.Controls
 
         private UIElement CreateEmptyCircle()
         {
+            var visualRadius = GetVisualCircleRadius();
             var ellipse = new Ellipse
             {
-                Width = CircleRadius * 2,
-                Height = CircleRadius * 2,
+                Width = visualRadius * 2,
+                Height = visualRadius * 2,
                 Stroke = Brushes.Gray,
                 StrokeThickness = 2,
                 StrokeDashArray = new DoubleCollection { 10, 10 },
@@ -134,23 +170,24 @@ namespace WuLangSpellcraft.Renderer.Controls
 
             var centerX = Width / 2;
             var centerY = Height / 2;
+            var visualRadius = GetVisualCircleRadius();
 
             // Outer circle
             var outerCircle = new Ellipse
             {
-                Width = CircleRadius * 2,
-                Height = CircleRadius * 2,
+                Width = visualRadius * 2,
+                Height = visualRadius * 2,
                 Stroke = GetCircleBrush(),
                 StrokeThickness = 3,
                 Fill = new SolidColorBrush(Color.FromArgb(20, 100, 100, 200))
             };
 
-            Canvas.SetLeft(outerCircle, centerX - CircleRadius);
-            Canvas.SetTop(outerCircle, centerY - CircleRadius);
+            Canvas.SetLeft(outerCircle, centerX - visualRadius);
+            Canvas.SetTop(outerCircle, centerY - visualRadius);
             canvas.Children.Add(outerCircle);
 
             // Inner circle
-            var innerRadius = CircleRadius * 0.3;
+            var innerRadius = visualRadius * 0.3;
             var innerCircle = new Ellipse
             {
                 Width = innerRadius * 2,
@@ -173,11 +210,13 @@ namespace WuLangSpellcraft.Renderer.Controls
             if (MagicCircle == null) return;
 
             var maxTalismans = GetMaxTalismansForCircle();
+            var visualRadius = GetVisualCircleRadius();
+            
             for (int i = 0; i < maxTalismans; i++)
             {
                 var angle = (i * 360.0 / maxTalismans - 90) * Math.PI / 180;
-                var x = centerX + Math.Cos(angle) * CircleRadius;
-                var y = centerY + Math.Sin(angle) * CircleRadius;
+                var x = centerX + Math.Cos(angle) * visualRadius;
+                var y = centerY + Math.Sin(angle) * visualRadius;
 
                 var marker = new Ellipse
                 {
@@ -239,9 +278,12 @@ namespace WuLangSpellcraft.Renderer.Controls
             var centerX = Width / 2;
             var centerY = Height / 2;
             var maxTalismans = GetMaxTalismansForCircle();
+            var visualRadius = GetVisualCircleRadius();
+            var talismanSize = GetAdaptiveTalismanSize();
             
             // Position talismans slightly outside the circle but within the canvas bounds
-            var talismanRadius = CircleRadius + TalismanSize / 2 + 10;
+            // Add extra spacing to account for the larger talisman control size
+            var talismanRadius = visualRadius + talismanSize / 2 + 20; 
 
             for (int i = 0; i < MagicCircle.Talismans.Count && i < maxTalismans; i++)
             {
@@ -253,12 +295,13 @@ namespace WuLangSpellcraft.Renderer.Controls
                 var talismanControl = new TalismanControl
                 {
                     Talisman = talisman,
-                    Width = TalismanSize,
-                    Height = TalismanSize
+                    Width = 90,  // Match the TalismanControl's new size
+                    Height = 90
                 };
 
-                Canvas.SetLeft(talismanControl, x - TalismanSize / 2);
-                Canvas.SetTop(talismanControl, y - TalismanSize / 2);
+                // Center the larger talisman control at the calculated position
+                Canvas.SetLeft(talismanControl, x - 45); // Half of the 90px width
+                Canvas.SetTop(talismanControl, y - 45);  // Half of the 90px height
                 canvas.Children.Add(talismanControl);
             }
         }
@@ -352,8 +395,29 @@ namespace WuLangSpellcraft.Renderer.Controls
                 Margin = new Thickness(5, 0, 5, 2)
             });
 
-            Canvas.SetLeft(infoPanel, 5);
-            Canvas.SetTop(infoPanel, 5);
+            // Position the info panel to the side of the circle, not overlapping it
+            var visualRadius = GetVisualCircleRadius();
+            var centerX = Width / 2;
+            var centerY = Height / 2;
+            var panelX = centerX + visualRadius + 50; // Place to the right of the circle
+            var panelY = centerY - 50; // Slightly above center
+
+            // Draw a connecting line from circle to info panel
+            var connectionLine = new Line
+            {
+                X1 = centerX + visualRadius,
+                Y1 = centerY,
+                X2 = panelX - 5,
+                Y2 = panelY + 25, // Connect to middle of panel
+                Stroke = Brushes.Gray,
+                StrokeThickness = 1,
+                StrokeDashArray = new DoubleCollection { 3, 3 },
+                Opacity = 0.7
+            };
+            canvas.Children.Add(connectionLine);
+
+            Canvas.SetLeft(infoPanel, panelX);
+            Canvas.SetTop(infoPanel, panelY);
             canvas.Children.Add(infoPanel);
         }
 

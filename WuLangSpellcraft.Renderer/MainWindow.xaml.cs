@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Microsoft.Win32;
 using WuLangSpellcraft.Core;
 using WuLangSpellcraft.Core.Serialization;
@@ -21,6 +22,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializeTalismanLibrary();
         CreateNewCircle();
+        UpdateCircleCapacityLabel(); // Initialize capacity label
         
         // Test if controls are accessible
         Title = "Wu Lang Spellcraft Renderer - Loaded Successfully";
@@ -113,7 +115,8 @@ public partial class MainWindow : Window
 
     private void CreateNewCircle()
     {
-        _currentCircle = new MagicCircle("New Circle", 5.0);
+        var radius = CircleSizeSlider?.Value ?? 5.0;
+        _currentCircle = new MagicCircle("New Circle", radius);
         var circleViewer = FindName("CircleViewer") as MagicCircleControl;
         var statusText = FindName("StatusText") as TextBlock;
         
@@ -128,6 +131,7 @@ public partial class MainWindow : Window
             circleViewer.UpdateLayout();
         }
         UpdateCircleStats();
+        UpdateCircleCapacityLabel();
         if (statusText != null)
             statusText.Text = "Created new magic circle";
     }
@@ -303,5 +307,77 @@ public partial class MainWindow : Window
             $"Power: {_currentCircle.PowerOutput:F1} | " +
             $"Stability: {_currentCircle.Stability:F2} | " +
             $"Effect: {spellEffect.Type} ({spellEffect.Power:F1})";
+    }
+
+    private void CircleSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (sender is not Slider slider) return;
+        
+        var sizeLabel = FindName("CircleSizeLabel") as TextBlock;
+        if (sizeLabel != null)
+            sizeLabel.Text = slider.Value.ToString("F1");
+        
+        UpdateCircleCapacityLabel();
+        
+        // Update existing circle if one exists
+        if (_currentCircle != null)
+        {
+            _currentCircle.Radius = slider.Value;
+            var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+            if (circleViewer != null)
+            {
+                circleViewer.MagicCircle = null;
+                circleViewer.MagicCircle = _currentCircle;
+                circleViewer.InvalidateVisual();
+                circleViewer.UpdateLayout();
+            }
+            UpdateCircleStats();
+        }
+    }
+
+    private void UpdateCircleCapacityLabel()
+    {
+        var capacityLabel = FindName("CircleCapacityLabel") as TextBlock;
+        var slider = FindName("CircleSizeSlider") as Slider;
+        if (capacityLabel == null || slider == null) return;
+        
+        var radius = slider.Value;
+        var circumference = 2 * Math.PI * radius;
+        var minSpacing = 2.0;
+        var maxTalismans = Math.Max(3, (int)(circumference / minSpacing));
+        
+        capacityLabel.Text = $"Max Talismans: {maxTalismans}";
+    }
+
+    private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (sender is not Slider slider) return;
+        
+        var zoomLabel = FindName("ZoomLabel") as TextBlock;
+        var viewbox = FindName("CanvasViewbox") as Viewbox;
+        
+        if (zoomLabel != null)
+            zoomLabel.Text = $"{slider.Value * 100:F0}%";
+        
+        if (viewbox != null)
+        {
+            var scaleTransform = new ScaleTransform(slider.Value, slider.Value);
+            viewbox.RenderTransform = scaleTransform;
+        }
+    }
+
+    private void ResetView_Click(object sender, RoutedEventArgs e)
+    {
+        var zoomSlider = FindName("ZoomSlider") as Slider;
+        var scrollViewer = FindName("CanvasScrollViewer") as ScrollViewer;
+        
+        if (zoomSlider != null)
+            zoomSlider.Value = 1.0;
+        
+        if (scrollViewer != null)
+        {
+            scrollViewer.ScrollToVerticalOffset(0);
+            scrollViewer.ScrollToHorizontalOffset(0);
+        }
     }
 }

@@ -41,13 +41,15 @@ namespace WuLangSpellcraft.Renderer.Controls
             set => SetValue(ShowEffectsProperty, value);
         }
 
-        private const double CircleRadius = 150;
+        private const double CircleRadius = 120;
         private const double TalismanSize = 60;
+        private const double CanvasPadding = 40;
 
         public MagicCircleControl()
         {
-            Width = (CircleRadius + TalismanSize) * 2 + 20;
-            Height = (CircleRadius + TalismanSize) * 2 + 20;
+            Width = (CircleRadius + TalismanSize + CanvasPadding) * 2;
+            Height = (CircleRadius + TalismanSize + CanvasPadding) * 2;
+            ClipToBounds = false; // Allow talismans to be fully visible
             RenderMagicCircle();
         }
 
@@ -237,13 +239,16 @@ namespace WuLangSpellcraft.Renderer.Controls
             var centerX = Width / 2;
             var centerY = Height / 2;
             var maxTalismans = GetMaxTalismansForCircle();
+            
+            // Position talismans slightly outside the circle but within the canvas bounds
+            var talismanRadius = CircleRadius + TalismanSize / 2 + 10;
 
             for (int i = 0; i < MagicCircle.Talismans.Count && i < maxTalismans; i++)
             {
                 var talisman = MagicCircle.Talismans[i];
                 var angle = (i * 360.0 / maxTalismans - 90) * Math.PI / 180;
-                var x = centerX + Math.Cos(angle) * CircleRadius;
-                var y = centerY + Math.Sin(angle) * CircleRadius;
+                var x = centerX + Math.Cos(angle) * talismanRadius;
+                var y = centerY + Math.Sin(angle) * talismanRadius;
 
                 var talismanControl = new TalismanControl
                 {

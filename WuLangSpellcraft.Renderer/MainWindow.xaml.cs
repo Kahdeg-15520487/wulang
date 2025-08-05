@@ -21,10 +21,20 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializeTalismanLibrary();
         CreateNewCircle();
+        
+        // Test if controls are accessible
+        Title = "Wu Lang Spellcraft Renderer - Loaded Successfully";
     }
 
     private void InitializeTalismanLibrary()
     {
+        var talismanList = FindName("TalismanList") as StackPanel;
+        if (talismanList == null) 
+        {
+            MessageBox.Show("TalismanList not found!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        
         var elements = new[]
         {
             (ElementType.Water, "CornflowerBlue"),
@@ -48,12 +58,15 @@ public partial class MainWindow : Window
             };
 
             button.Click += CreateTalisman_Click;
-            TalismanList.Children.Add(button);
+            talismanList.Children.Add(button);
         }
     }
 
     private void CreateTalisman_Click(object sender, RoutedEventArgs e)
     {
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        var statusText = FindName("StatusText") as TextBlock;
+        
         if (sender is Button button && button.Tag is ElementType elementType && _currentCircle != null)
         {
             var element = new Element(elementType) { IsActive = true };
@@ -61,13 +74,27 @@ public partial class MainWindow : Window
             
             if (_currentCircle.AddTalisman(talisman))
             {
-                CircleViewer.MagicCircle = _currentCircle;
+                if (circleViewer != null)
+                {
+                    // Force the control to update by setting the property to null first, then back to the circle
+                    circleViewer.MagicCircle = null;
+                    circleViewer.MagicCircle = _currentCircle;
+                    
+                    // Also force a visual update
+                    circleViewer.InvalidateVisual();
+                    circleViewer.UpdateLayout();
+                }
                 UpdateCircleStats();
-                StatusText.Text = $"Added {elementType} talisman to circle";
+                if (statusText != null)
+                    statusText.Text = $"Added {elementType} talisman to circle (Total: {_currentCircle.Talismans.Count})";
+                    
+                MessageBox.Show($"Successfully added {elementType} talisman!\nTotal talismans: {_currentCircle.Talismans.Count}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                StatusText.Text = "Circle is full - cannot add more talismans";
+                if (statusText != null)
+                    statusText.Text = "Circle is full - cannot add more talismans";
+                MessageBox.Show("Circle is full!", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
@@ -80,84 +107,32 @@ public partial class MainWindow : Window
     private void CreateNewCircle()
     {
         _currentCircle = new MagicCircle("New Circle", 5.0);
-        CircleViewer.MagicCircle = _currentCircle;
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        var statusText = FindName("StatusText") as TextBlock;
+        
+        if (circleViewer != null)
+        {
+            // Force the control to update by setting the property to null first, then back to the circle
+            circleViewer.MagicCircle = null;
+            circleViewer.MagicCircle = _currentCircle;
+            
+            // Also force a visual update
+            circleViewer.InvalidateVisual();
+            circleViewer.UpdateLayout();
+        }
         UpdateCircleStats();
-        StatusText.Text = "Created new magic circle";
+        if (statusText != null)
+            statusText.Text = "Created new magic circle";
     }
 
     private void LoadConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        var openFileDialog = new OpenFileDialog
-        {
-            Filter = "Wu Lang Spell Configuration (*.json)|*.json|All files (*.*)|*.*",
-            Title = "Load Spell Configuration"
-        };
-
-        if (openFileDialog.ShowDialog() == true)
-        {
-            try
-            {
-                var json = File.ReadAllText(openFileDialog.FileName);
-                var configuration = SpellSerializer.DeserializeSpell(json);
-                
-                if (configuration.Circles.Any())
-                {
-                    _currentCircle = configuration.Circles.First().ToMagicCircle();
-                    CircleViewer.MagicCircle = _currentCircle;
-                    UpdateCircleStats();
-                    StatusText.Text = $"Loaded configuration from {Path.GetFileName(openFileDialog.FileName)}";
-                }
-                else
-                {
-                    MessageBox.Show("No circles found in the configuration file.", "Load Error", 
-                                  MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to load configuration: {ex.Message}", "Load Error", 
-                              MessageBoxButton.OK, MessageBoxImage.Error);
-                StatusText.Text = "Failed to load configuration";
-            }
-        }
+        MessageBox.Show("Load feature not implemented yet", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private async void SaveConfiguration_Click(object sender, RoutedEventArgs e)
+    private void SaveConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentCircle == null)
-        {
-            MessageBox.Show("No circle to save.", "Save Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var saveFileDialog = new SaveFileDialog
-        {
-            Filter = "Wu Lang Spell Configuration (*.json)|*.json|All files (*.*)|*.*",
-            Title = "Save Spell Configuration",
-            DefaultExt = "json"
-        };
-
-        if (saveFileDialog.ShowDialog() == true)
-        {
-            try
-            {
-                var configuration = new SpellConfiguration
-                {
-                    Name = "Rendered Configuration",
-                    Description = "Created with Wu Lang Spellcraft Renderer",
-                    Circles = new List<WuLangSpellcraft.Core.Serialization.MagicCircleData> { new WuLangSpellcraft.Core.Serialization.MagicCircleData(_currentCircle) }
-                };
-
-                await SpellSerializer.SaveSpellToFileAsync(configuration, saveFileDialog.FileName);
-                StatusText.Text = $"Saved configuration to {Path.GetFileName(saveFileDialog.FileName)}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to save configuration: {ex.Message}", "Save Error", 
-                              MessageBoxButton.OK, MessageBoxImage.Error);
-                StatusText.Text = "Failed to save configuration";
-            }
-        }
+        MessageBox.Show("Save feature not implemented yet", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -207,13 +182,28 @@ public partial class MainWindow : Window
 
         if (_currentCircle.AddTalisman(talisman))
         {
-            CircleViewer.MagicCircle = _currentCircle;
+            var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+            var statusText = FindName("StatusText") as TextBlock;
+            
+            if (circleViewer != null)
+            {
+                // Force the control to update by setting the property to null first, then back to the circle
+                circleViewer.MagicCircle = null;
+                circleViewer.MagicCircle = _currentCircle;
+                
+                // Also force a visual update
+                circleViewer.InvalidateVisual();
+                circleViewer.UpdateLayout();
+            }
             UpdateCircleStats();
-            StatusText.Text = $"Added random {randomElementType} talisman";
+            if (statusText != null)
+                statusText.Text = $"Added random {randomElementType} talisman (Total: {_currentCircle.Talismans.Count})";
         }
         else
         {
-            StatusText.Text = "Circle is full - cannot add more talismans";
+            var statusText = FindName("StatusText") as TextBlock;
+            if (statusText != null)
+                statusText.Text = "Circle is full - cannot add more talismans";
         }
     }
 
@@ -227,9 +217,22 @@ public partial class MainWindow : Window
         if (result == MessageBoxResult.Yes)
         {
             _currentCircle.Talismans.Clear();
-            CircleViewer.MagicCircle = _currentCircle;
+            var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+            var statusText = FindName("StatusText") as TextBlock;
+            
+            if (circleViewer != null)
+            {
+                // Force the control to update by setting the property to null first, then back to the circle
+                circleViewer.MagicCircle = null;
+                circleViewer.MagicCircle = _currentCircle;
+                
+                // Also force a visual update
+                circleViewer.InvalidateVisual();
+                circleViewer.UpdateLayout();
+            }
             UpdateCircleStats();
-            StatusText.Text = "Cleared circle";
+            if (statusText != null)
+                statusText.Text = "Cleared circle";
         }
     }
 
@@ -267,21 +270,37 @@ public partial class MainWindow : Window
                 break; // Circle is full
         }
 
-        CircleViewer.MagicCircle = _currentCircle;
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        var statusText = FindName("StatusText") as TextBlock;
+        
+        if (circleViewer != null)
+        {
+            // Force the control to update by setting the property to null first, then back to the circle
+            circleViewer.MagicCircle = null;
+            circleViewer.MagicCircle = _currentCircle;
+            
+            // Also force a visual update
+            circleViewer.InvalidateVisual();
+            circleViewer.UpdateLayout();
+        }
         UpdateCircleStats();
-        StatusText.Text = "Generated demo circle with balanced elements";
+        if (statusText != null)
+            statusText.Text = "Generated demo circle with balanced elements";
     }
 
     private void UpdateCircleStats()
     {
+        var circleStatsText = FindName("CircleStatsText") as TextBlock;
+        if (circleStatsText == null) return;
+        
         if (_currentCircle == null)
         {
-            CircleStatsText.Text = "No circle loaded";
+            circleStatsText.Text = "No circle loaded";
             return;
         }
 
         var spellEffect = _currentCircle.CalculateSpellEffect();
-        CircleStatsText.Text = 
+        circleStatsText.Text = 
             $"Talismans: {_currentCircle.Talismans.Count} | " +
             $"Power: {_currentCircle.PowerOutput:F1} | " +
             $"Stability: {_currentCircle.Stability:F2} | " +

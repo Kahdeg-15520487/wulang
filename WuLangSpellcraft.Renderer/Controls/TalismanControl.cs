@@ -23,8 +23,9 @@ namespace WuLangSpellcraft.Renderer.Controls
 
         public TalismanControl()
         {
-            Width = 80;
-            Height = 80;
+            Width = 60;
+            Height = 60;
+            ClipToBounds = false; // Allow the full talisman to be visible
             RenderTalisman();
         }
 

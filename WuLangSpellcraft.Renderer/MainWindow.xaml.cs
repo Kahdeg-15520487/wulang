@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using WuLangSpellcraft.Core;
 using WuLangSpellcraft.Core.Serialization;
 using WuLangSpellcraft.Renderer.Controls;
+using WuLangSpellcraft.Renderer.Services;
 
 namespace WuLangSpellcraft.Renderer;
 
@@ -138,16 +139,102 @@ public partial class MainWindow : Window
 
     private void LoadConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        var statusText = FindName("StatusText") as TextBlock;
-        if (statusText != null)
-            statusText.Text = "Load feature not implemented yet";
+        var openFileDialog = new OpenFileDialog
+        {
+            Title = "Load Spell Configuration",
+            Filter = "Spell Images (*.png)|*.png|All files (*.*)|*.*",
+            FilterIndex = 1,
+            RestoreDirectory = true
+        };
+
+        if (openFileDialog.ShowDialog() == true)
+        {
+            try
+            {
+                // Check if the file contains spell data
+                if (!ImageSpellStorage.IsSpellImage(openFileDialog.FileName))
+                {
+                    MessageBox.Show("The selected image does not contain spell data.", "Invalid Spell Image", 
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Load the spell from image metadata
+                var loadedCircle = ImageSpellStorage.LoadSpellFromImage(openFileDialog.FileName);
+                if (loadedCircle != null)
+                {
+                    _currentCircle = loadedCircle;
+                    var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+                    if (circleViewer != null)
+                    {
+                        circleViewer.MagicCircle = null;
+                        circleViewer.MagicCircle = _currentCircle;
+                        circleViewer.InvalidateVisual();
+                        circleViewer.UpdateLayout();
+                    }
+                    UpdateCircleStats();
+                    UpdateCircleCapacityLabel();
+
+                    var statusText = FindName("StatusText") as TextBlock;
+                    if (statusText != null)
+                        statusText.Text = $"Successfully loaded spell from {Path.GetFileName(openFileDialog.FileName)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load spell: {ex.Message}", "Load Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                
+                var statusText = FindName("StatusText") as TextBlock;
+                if (statusText != null)
+                    statusText.Text = "Failed to load spell configuration";
+            }
+        }
     }
 
     private void SaveConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        var statusText = FindName("StatusText") as TextBlock;
-        if (statusText != null)
-            statusText.Text = "Save feature not implemented yet";
+        if (_currentCircle == null)
+        {
+            MessageBox.Show("No spell to save. Please create a spell first.", "No Spell", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var saveFileDialog = new SaveFileDialog
+        {
+            Title = "Save Spell Configuration",
+            Filter = "Spell Images (*.png)|*.png",
+            FilterIndex = 1,
+            RestoreDirectory = true,
+            FileName = $"{_currentCircle.Name}_{DateTime.Now:yyyyMMdd_HHmmss}.png"
+        };
+
+        if (saveFileDialog.ShowDialog() == true)
+        {
+            try
+            {
+                // Save the current circle as an image with programmatic rendering
+                ImageSpellStorage.SaveSpellAsImage(_currentCircle, saveFileDialog.FileName);
+
+                var statusText = FindName("StatusText") as TextBlock;
+                if (statusText != null)
+                    statusText.Text = $"Successfully saved spell to {Path.GetFileName(saveFileDialog.FileName)}";
+
+                MessageBox.Show($"Spell saved successfully!\n\nThe spell data has been saved with the image. " +
+                    $"You can share this image and others can load the exact spell configuration from it.", 
+                    "Save Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save spell: {ex.Message}", "Save Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                
+                var statusText = FindName("StatusText") as TextBlock;
+                if (statusText != null)
+                    statusText.Text = "Failed to save spell configuration";
+            }
+        }
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)

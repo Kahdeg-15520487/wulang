@@ -36,6 +36,11 @@ namespace WuLangSpellcraft
             
             Console.WriteLine();
             
+            // NEW: Demonstrate Unified Composition System
+            CompositionSystemDemo.RunDemo();
+            
+            Console.WriteLine();
+            
             // Demonstrate Serialization
             await DemonstrateSerialization();
             

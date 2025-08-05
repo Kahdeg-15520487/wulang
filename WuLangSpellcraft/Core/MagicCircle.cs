@@ -5,7 +5,7 @@ using System.Linq;
 namespace WuLangSpellcraft.Core
 {
     /// <summary>
-    /// Represents a magic circle containing arranged talismans
+    /// Represents a magic circle containing arranged talismans with support for unified composition
     /// </summary>
     public class MagicCircle
     {
@@ -26,8 +26,18 @@ namespace WuLangSpellcraft.Core
         // Artifacts attached to this circle
         public List<Artifact> AttachedArtifacts { get; }
         
-        // Connections to other circles
+        // Connections to other circles (Network Approach)
         public List<CircleConnection> Connections { get; }
+        
+        // Nested circles support (Nested Approach)
+        public List<MagicCircle> NestedCircles { get; }
+        public MagicCircle? ParentCircle { get; set; }
+        public double NestedScale { get; set; } = 1.0; // Size scaling when nested
+        
+        // Composition complexity properties
+        public double CastingTime { get; private set; }
+        public double ComplexityScore { get; private set; }
+        public CompositionType CompositionType { get; private set; }
 
         public MagicCircle(string? name = null, double radius = 5.0)
         {
@@ -36,11 +46,14 @@ namespace WuLangSpellcraft.Core
             Talismans = new List<Talisman>();
             AttachedArtifacts = new List<Artifact>();
             Connections = new List<CircleConnection>();
+            NestedCircles = new List<MagicCircle>();
             Radius = radius;
             CenterX = 0;
             CenterY = 0;
             Layer = 0;
             IsActive = true;
+            NestedScale = 1.0;
+            CompositionType = CompositionType.Simple;
         }
 
         /// <summary>
@@ -182,6 +195,7 @@ namespace WuLangSpellcraft.Core
                 PowerOutput = 0;
                 Stability = 1.0;
                 Efficiency = 0;
+                RecalculateComposition();
                 return;
             }
 
@@ -212,6 +226,9 @@ namespace WuLangSpellcraft.Core
                 var conflictPenalty = (double)conflicts / totalInteractions * 0.5;
                 Efficiency = Math.Max(0.1, harmonyRatio - conflictPenalty + 0.3);
             }
+            
+            // Update composition complexity and casting time
+            RecalculateComposition();
         }
 
         public ElementType GetDominantElement()
@@ -452,10 +469,270 @@ namespace WuLangSpellcraft.Core
         {
             var artifactCount = AttachedArtifacts.Count;
             var artifactText = artifactCount > 0 ? $", {artifactCount} artifacts" : "";
+            var compositionText = CompositionType != CompositionType.Simple ? $", {CompositionType}" : "";
             
-            return $"{Name}: {Talismans.Count} talismans{artifactText}, Power: {PowerOutput:F1}, " +
-                   $"Stability: {Stability:F2}, Efficiency: {Efficiency:F2}";
+            return $"{Name}: {Talismans.Count} talismans{artifactText}{compositionText}, " +
+                   $"Power: {PowerOutput:F1}, Stability: {Stability:F2}, Complexity: {ComplexityScore:F1}";
         }
+
+        /// <summary>
+        /// Adds a nested circle inside this circle
+        /// </summary>
+        public bool NestCircle(MagicCircle nestedCircle, double scale = 0.6)
+        {
+            // Check if the nested circle can fit
+            var maxNestedRadius = Radius * scale;
+            if (nestedCircle.Radius > maxNestedRadius)
+            {
+                return false;
+            }
+
+            // Set up nesting relationship
+            nestedCircle.ParentCircle = this;
+            nestedCircle.NestedScale = scale;
+            nestedCircle.Layer = Layer; // Same layer as parent
+            
+            // Position nested circle (can be customized)
+            var availablePositions = CalculateNestedPositions();
+            if (availablePositions.Count == 0)
+            {
+                return false;
+            }
+
+            var position = availablePositions[0];
+            nestedCircle.CenterX = CenterX + position.X;
+            nestedCircle.CenterY = CenterY + position.Y;
+
+            NestedCircles.Add(nestedCircle);
+            RecalculateComposition();
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a nested circle
+        /// </summary>
+        public bool UnnestCircle(MagicCircle nestedCircle)
+        {
+            if (NestedCircles.Remove(nestedCircle))
+            {
+                nestedCircle.ParentCircle = null;
+                nestedCircle.NestedScale = 1.0;
+                RecalculateComposition();
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Calculates available positions for nested circles
+        /// </summary>
+        private List<(double X, double Y)> CalculateNestedPositions()
+        {
+            var positions = new List<(double, double)>();
+            var maxDistance = Radius * 0.4; // Keep nested circles away from edge
+            
+            // For now, just offer center and cardinal directions
+            positions.Add((0, 0)); // Center
+            positions.Add((maxDistance, 0)); // East
+            positions.Add((-maxDistance, 0)); // West
+            positions.Add((0, maxDistance)); // North
+            positions.Add((0, -maxDistance)); // South
+            
+            // Filter out occupied positions
+            return positions.Where(pos => !IsNestedPositionOccupied(pos.Item1, pos.Item2)).ToList();
+        }
+
+        /// <summary>
+        /// Checks if a nested position is already occupied
+        /// </summary>
+        private bool IsNestedPositionOccupied(double relativeX, double relativeY)
+        {
+            var absoluteX = CenterX + relativeX;
+            var absoluteY = CenterY + relativeY;
+            
+            return NestedCircles.Any(circle => 
+            {
+                var distance = Math.Sqrt(Math.Pow(circle.CenterX - absoluteX, 2) + 
+                                       Math.Pow(circle.CenterY - absoluteY, 2));
+                return distance < (circle.Radius + 1.0); // Minimum separation
+            });
+        }
+
+        /// <summary>
+        /// Recalculates composition type and complexity
+        /// </summary>
+        private void RecalculateComposition()
+        {
+            // Determine composition type
+            var hasNested = NestedCircles.Count > 0;
+            var hasConnections = Connections.Count > 0;
+            var hasStacking = Layer > 0 || (ParentCircle?.NestedCircles.Any(c => c.Layer != Layer) ?? false);
+
+            CompositionType = (hasNested, hasConnections, hasStacking) switch
+            {
+                (true, true, true) => CompositionType.Unified,
+                (true, true, false) => CompositionType.NestedNetwork,
+                (true, false, true) => CompositionType.StackedNested,
+                (false, true, true) => CompositionType.StackedNetwork,
+                (true, false, false) => CompositionType.Nested,
+                (false, true, false) => CompositionType.Network,
+                (false, false, true) => CompositionType.Stacked,
+                _ => CompositionType.Simple
+            };
+
+            // Calculate complexity score
+            ComplexityScore = CalculateComplexityScore();
+            
+            // Calculate casting time
+            CastingTime = CalculateCastingTime();
+            
+            // Do NOT call RecalculateProperties() here to avoid infinite recursion
+        }
+
+        /// <summary>
+        /// Calculates the overall complexity score of this circle composition
+        /// </summary>
+        public double CalculateComplexityScore()
+        {
+            var baseComplexity = Talismans.Count * 1.0; // Base talisman complexity
+            var radiusComplexity = Radius * 0.1; // Larger circles are more complex
+            
+            // Stacking complexity (layer-based)
+            var stackingComplexity = Layer * 0.3;
+            
+            // Nested circles complexity
+            var nestingComplexity = NestedCircles.Count * 1.5;
+            foreach (var nested in NestedCircles)
+            {
+                nestingComplexity += nested.CalculateComplexityScore() * 0.7; // Recursive complexity
+            }
+            
+            // Connection complexity
+            var connectionComplexity = 0.0;
+            foreach (var connection in Connections)
+            {
+                connectionComplexity += connection.Type switch
+                {
+                    ConnectionType.Direct => 0.5,
+                    ConnectionType.Flow => 0.8,
+                    ConnectionType.Resonance => 1.2,
+                    ConnectionType.Trigger => 1.5,
+                    _ => 0.0
+                };
+                
+                // Add target complexity factor
+                connectionComplexity += connection.Target.Talismans.Count * 0.2;
+            }
+            
+            // Stability penalty (unstable compositions are harder to manage)
+            var stabilityPenalty = (1.0 - Stability) * 2.0;
+            
+            return baseComplexity + radiusComplexity + stackingComplexity + 
+                   nestingComplexity + connectionComplexity + stabilityPenalty;
+        }
+
+        /// <summary>
+        /// Calculates casting time based on composition complexity
+        /// </summary>
+        public double CalculateCastingTime()
+        {
+            var baseTime = Math.Max(1.0, Radius / 3.0); // Minimum 1 second, scales with size
+            var complexityTime = ComplexityScore * 0.4; // Each complexity point adds 0.4 seconds
+            
+            // Composition type modifiers
+            var compositionModifier = CompositionType switch
+            {
+                CompositionType.Simple => 1.0,
+                CompositionType.Stacked => 1.2,
+                CompositionType.Nested => 1.4,
+                CompositionType.Network => 1.6,
+                CompositionType.StackedNested => 1.8,
+                CompositionType.StackedNetwork => 2.0,
+                CompositionType.NestedNetwork => 2.2,
+                CompositionType.Unified => 2.5,
+                _ => 1.0
+            };
+            
+            // Stability affects casting time (more stable = faster casting)
+            var stabilityModifier = 2.0 - Stability; // Range: 1.0 (perfect) to 2.0 (unstable)
+            
+            return Math.Max(0.5, (baseTime + complexityTime) * compositionModifier * stabilityModifier);
+        }
+
+        /// <summary>
+        /// Gets all circles in this composition (including nested and connected)
+        /// </summary>
+        public List<MagicCircle> GetAllCompositionCircles()
+        {
+            var circles = new HashSet<MagicCircle> { this };
+            
+            // Add nested circles recursively
+            foreach (var nested in NestedCircles)
+            {
+                foreach (var circle in nested.GetAllCompositionCircles())
+                {
+                    circles.Add(circle);
+                }
+            }
+            
+            // Add connected circles (non-recursive to avoid infinite loops)
+            foreach (var connection in Connections)
+            {
+                circles.Add(connection.Target);
+            }
+            
+            return circles.ToList();
+        }
+
+        /// <summary>
+        /// Gets the total power output of the entire composition
+        /// </summary>
+        public double GetCompositionPowerOutput()
+        {
+            var totalPower = PowerOutput;
+            
+            // Add nested circle power (with diminishing returns)
+            foreach (var nested in NestedCircles)
+            {
+                totalPower += nested.GetCompositionPowerOutput() * 0.8; // 80% efficiency
+            }
+            
+            // Add connected circle power (based on connection type)
+            foreach (var connection in Connections)
+            {
+                if (connection.IsActive)
+                {
+                    var connectionEfficiency = connection.Type switch
+                    {
+                        ConnectionType.Direct => 0.9,
+                        ConnectionType.Flow => 0.7,
+                        ConnectionType.Resonance => 1.2, // Can amplify power
+                        ConnectionType.Trigger => 0.5, // Lower continuous power
+                        _ => 0.5
+                    };
+                    
+                    totalPower += connection.Target.PowerOutput * connection.Strength * connectionEfficiency;
+                }
+            }
+            
+            return totalPower;
+        }
+    }
+
+    /// <summary>
+    /// Types of magic circle composition
+    /// </summary>
+    public enum CompositionType
+    {
+        Simple,           // Single circle
+        Stacked,          // Multiple layers (Z-axis)
+        Nested,           // Circles inside circles
+        Network,          // Connected circles
+        StackedNested,    // Stacked + Nested
+        StackedNetwork,   // Stacked + Network
+        NestedNetwork,    // Nested + Network  
+        Unified           // All three approaches combined
     }
 
     /// <summary>

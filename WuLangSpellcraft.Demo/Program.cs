@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using WuLangSpellcraft.Core;
 using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Demo;
 
 namespace WuLangSpellcraft
 {
@@ -27,6 +28,11 @@ namespace WuLangSpellcraft
             
             // Demonstrate Magic Circle composition
             DemonstrateMagicCircle();
+            
+            Console.WriteLine();
+            
+            // NEW: Demonstrate Stability Casting Mechanics
+            StabilityCastingDemo.RunDemo();
             
             Console.WriteLine();
             

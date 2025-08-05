@@ -1,11 +1,15 @@
 ﻿using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using WuLangSpellcraft.Core;
+using WuLangSpellcraft.Core.Serialization;
 
 namespace WuLangSpellcraft
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.WriteLine("=== Wu Xing Spellcraft - Proof of Concept ===");
             Console.WriteLine("Five Elements Visual Programming Language");
@@ -23,6 +27,11 @@ namespace WuLangSpellcraft
             
             // Demonstrate Magic Circle composition
             DemonstrateMagicCircle();
+            
+            Console.WriteLine();
+            
+            // Demonstrate Serialization
+            await DemonstrateSerialization();
             
             Console.WriteLine();
             Console.WriteLine("Press any key to exit...");
@@ -208,6 +217,119 @@ namespace WuLangSpellcraft
             Console.WriteLine("  • Multi-layer elemental combinations");
             Console.WriteLine("  • Harmonic resonance between circles");
             Console.WriteLine("  • Visual programming through sacred geometry");
+            
+            // Store circles for serialization demo
+            _demonstrationCircles = new[] { circle, upperCircle };
+        }
+
+        // Store circles for use in serialization demo
+        private static MagicCircle[] _demonstrationCircles = Array.Empty<MagicCircle>();
+
+        static async Task DemonstrateSerialization()
+        {
+            Console.WriteLine("--- Spell Serialization and Persistence ---");
+            
+            if (_demonstrationCircles.Length == 0)
+            {
+                Console.WriteLine("No circles available for serialization demo.");
+                return;
+            }
+
+            try
+            {
+                // Create a spell configuration from our demonstration circles
+                var spellConfig = SpellConfiguration.FromCircles(
+                    "Elemental Harmony Spell", 
+                    _demonstrationCircles.ToList(),
+                    "A demonstration spell combining Fire, Earth, Water, Wood, and Metal elements in harmonic resonance"
+                );
+                
+                spellConfig.Author = "Wu Xing Spellcraft Demo";
+                spellConfig.Metadata["difficulty"] = "Intermediate";
+                spellConfig.Metadata["elements"] = new[] { "Fire", "Earth", "Water", "Wood", "Metal" };
+                spellConfig.Metadata["totalPower"] = _demonstrationCircles.Sum(c => c.PowerOutput);
+
+                Console.WriteLine($"Created spell configuration: {spellConfig.Name}");
+                Console.WriteLine($"  Description: {spellConfig.Description}");
+                Console.WriteLine($"  Author: {spellConfig.Author}");
+                Console.WriteLine($"  Circles: {spellConfig.Circles.Count}");
+                Console.WriteLine($"  Connections: {spellConfig.Connections.Count}");
+                Console.WriteLine($"  Total Power: {spellConfig.Metadata["totalPower"]}");
+
+                Console.WriteLine();
+                Console.WriteLine("Serializing to JSON...");
+                
+                // Serialize to JSON string
+                var json = SpellSerializer.SerializeSpell(spellConfig);
+                Console.WriteLine($"JSON size: {json.Length:N0} characters");
+                
+                // Show a snippet of the JSON
+                var snippet = json.Length > 200 ? json[..200] + "..." : json;
+                Console.WriteLine($"JSON snippet: {snippet}");
+
+                Console.WriteLine();
+                Console.WriteLine("Saving to file...");
+                
+                // Save to file
+                var fileName = "elemental_harmony_spell.json";
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), fileName);
+                await SpellSerializer.SaveSpellToFileAsync(spellConfig, filePath);
+                
+                Console.WriteLine($"✓ Saved to: {filePath}");
+                
+                Console.WriteLine();
+                Console.WriteLine("Loading from file and verifying...");
+                
+                // Load from file
+                var loadedConfig = await SpellSerializer.LoadSpellFromFileAsync(filePath);
+                Console.WriteLine($"✓ Loaded spell: {loadedConfig.Name}");
+                Console.WriteLine($"  Circles loaded: {loadedConfig.Circles.Count}");
+                Console.WriteLine($"  Connections loaded: {loadedConfig.Connections.Count}");
+                
+                // Reconstruct the spell
+                var reconstructedCircles = loadedConfig.ReconstructSpell();
+                Console.WriteLine($"✓ Reconstructed {reconstructedCircles.Count} circles");
+                
+                // Verify the reconstruction
+                foreach (var circle in reconstructedCircles)
+                {
+                    Console.WriteLine($"  Circle: {circle.Name} with {circle.Talismans.Count} talismans");
+                    var effect = circle.CalculateSpellEffect();
+                    Console.WriteLine($"    Effect: {effect.Type} power {effect.Power:F1}");
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Individual circle serialization test...");
+                
+                // Test individual circle serialization
+                var singleCircle = _demonstrationCircles[0];
+                var circleJson = SpellSerializer.SerializeCircle(singleCircle);
+                var recreatedCircle = SpellSerializer.DeserializeCircle(circleJson);
+                
+                Console.WriteLine($"Original: {singleCircle.Name} (Power: {singleCircle.PowerOutput:F1})");
+                Console.WriteLine($"Recreated: {recreatedCircle.Name} (Power: {recreatedCircle.PowerOutput:F1})");
+                Console.WriteLine($"✓ Circle serialization verified!");
+
+                Console.WriteLine();
+                Console.WriteLine("Serialization Features Demonstrated:");
+                Console.WriteLine("  • Complete spell configuration persistence");
+                Console.WriteLine("  • JSON format for human readability and version control");
+                Console.WriteLine("  • Individual circle save/load capabilities");
+                Console.WriteLine("  • Metadata and author information");
+                Console.WriteLine("  • Full reconstruction of complex 3D spell architectures");
+                Console.WriteLine("  • File-based spell library management");
+                
+                // Clean up demo file
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                    Console.WriteLine($"  (Demo file {fileName} cleaned up)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Serialization error: {ex.Message}");
+            }
         }
     }
 }

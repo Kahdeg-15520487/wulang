@@ -37,11 +37,21 @@ public partial class MainWindow : Window
         
         var elements = new[]
         {
+            // Base Elements
             (ElementType.Water, "CornflowerBlue"),
             (ElementType.Fire, "OrangeRed"),
             (ElementType.Earth, "SandyBrown"),
             (ElementType.Metal, "Silver"),
-            (ElementType.Wood, "ForestGreen")
+            (ElementType.Wood, "ForestGreen"),
+            
+            // Derived Elements
+            (ElementType.Lightning, "Magenta"),
+            (ElementType.Wind, "LightGray"),
+            (ElementType.Light, "Gold"),
+            (ElementType.Dark, "DarkSlateBlue"),
+            (ElementType.Forge, "DarkGray"),
+            (ElementType.Chaos, "DarkRed"),
+            (ElementType.Void, "Black")
         };
 
         foreach (var (elementType, color) in elements)
@@ -87,14 +97,11 @@ public partial class MainWindow : Window
                 UpdateCircleStats();
                 if (statusText != null)
                     statusText.Text = $"Added {elementType} talisman to circle (Total: {_currentCircle.Talismans.Count})";
-                    
-                MessageBox.Show($"Successfully added {elementType} talisman!\nTotal talismans: {_currentCircle.Talismans.Count}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
                 if (statusText != null)
                     statusText.Text = "Circle is full - cannot add more talismans";
-                MessageBox.Show("Circle is full!", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
@@ -127,12 +134,16 @@ public partial class MainWindow : Window
 
     private void LoadConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Load feature not implemented yet", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+        var statusText = FindName("StatusText") as TextBlock;
+        if (statusText != null)
+            statusText.Text = "Load feature not implemented yet";
     }
 
     private void SaveConfiguration_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Save feature not implemented yet", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+        var statusText = FindName("StatusText") as TextBlock;
+        if (statusText != null)
+            statusText.Text = "Save feature not implemented yet";
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -142,19 +153,11 @@ public partial class MainWindow : Window
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show(
-            "Wu Lang Spellcraft Renderer\n\n" +
-            "A visual programming language inspired by the Chinese Wu Xing (Five Elements) system.\n" +
-            "Create and visualize magic circles with elemental talismans.\n\n" +
-            "Elements:\n" +
-            "• Water (水) - Flow and adaptation\n" +
-            "• Fire (火) - Energy and transformation\n" +
-            "• Earth (土) - Stability and grounding\n" +
-            "• Metal (金) - Precision and structure\n" +
-            "• Wood (木) - Growth and flexibility",
-            "About Wu Lang Spellcraft",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        var statusText = FindName("StatusText") as TextBlock;
+        if (statusText != null)
+        {
+            statusText.Text = "Wu Lang Spellcraft Renderer - A visual programming language inspired by the Chinese Wu Xing (Five Elements) system";
+        }
     }
 
     private void AddRandomTalisman_Click(object sender, RoutedEventArgs e)
@@ -211,29 +214,24 @@ public partial class MainWindow : Window
     {
         if (_currentCircle == null) return;
 
-        var result = MessageBox.Show("Are you sure you want to clear the current circle?", 
-                                   "Clear Circle", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        // Clear the circle without confirmation
+        _currentCircle.Talismans.Clear();
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        var statusText = FindName("StatusText") as TextBlock;
         
-        if (result == MessageBoxResult.Yes)
+        if (circleViewer != null)
         {
-            _currentCircle.Talismans.Clear();
-            var circleViewer = FindName("CircleViewer") as MagicCircleControl;
-            var statusText = FindName("StatusText") as TextBlock;
+            // Force the control to update by setting the property to null first, then back to the circle
+            circleViewer.MagicCircle = null;
+            circleViewer.MagicCircle = _currentCircle;
             
-            if (circleViewer != null)
-            {
-                // Force the control to update by setting the property to null first, then back to the circle
-                circleViewer.MagicCircle = null;
-                circleViewer.MagicCircle = _currentCircle;
-                
-                // Also force a visual update
-                circleViewer.InvalidateVisual();
-                circleViewer.UpdateLayout();
-            }
-            UpdateCircleStats();
-            if (statusText != null)
-                statusText.Text = "Cleared circle";
+            // Also force a visual update
+            circleViewer.InvalidateVisual();
+            circleViewer.UpdateLayout();
         }
+        UpdateCircleStats();
+        if (statusText != null)
+            statusText.Text = "Cleared circle";
     }
 
     private void GenerateDemoCircle_Click(object sender, RoutedEventArgs e)

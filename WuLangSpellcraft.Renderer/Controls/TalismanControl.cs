@@ -284,11 +284,22 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             return elementType switch
             {
+                // Base Elements
                 ElementType.Water => Colors.CornflowerBlue,
                 ElementType.Fire => Colors.OrangeRed,
                 ElementType.Earth => Colors.SandyBrown,
                 ElementType.Metal => Colors.Silver,
                 ElementType.Wood => Colors.ForestGreen,
+                
+                // Derived Elements
+                ElementType.Lightning => Colors.Magenta,
+                ElementType.Wind => Colors.LightGray,
+                ElementType.Light => Colors.Gold,
+                ElementType.Dark => Colors.DarkSlateBlue,
+                ElementType.Forge => Colors.DarkGray,
+                ElementType.Chaos => Colors.DarkRed,
+                ElementType.Void => Colors.Black,
+                
                 _ => Colors.Gray
             };
         }
@@ -297,11 +308,22 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             return elementType switch
             {
+                // Base Elements
                 ElementType.Water => "水",
                 ElementType.Fire => "火",
                 ElementType.Earth => "土",
                 ElementType.Metal => "金",
                 ElementType.Wood => "木",
+                
+                // Derived Elements
+                ElementType.Lightning => "雷",
+                ElementType.Wind => "風",
+                ElementType.Light => "光",
+                ElementType.Dark => "闇",
+                ElementType.Forge => "鍛",
+                ElementType.Chaos => "混沌",
+                ElementType.Void => "虛無",
+                
                 _ => "?"
             };
         }

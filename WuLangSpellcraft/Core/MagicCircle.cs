@@ -23,6 +23,9 @@ namespace WuLangSpellcraft.Core
         public double Efficiency { get; private set; }
         public bool IsActive { get; set; }
         
+        // Artifacts attached to this circle
+        public List<Artifact> AttachedArtifacts { get; }
+        
         // Connections to other circles
         public List<CircleConnection> Connections { get; }
 
@@ -31,6 +34,7 @@ namespace WuLangSpellcraft.Core
             Id = Guid.NewGuid();
             Name = name ?? $"Circle_{Id.ToString()[..8]}";
             Talismans = new List<Talisman>();
+            AttachedArtifacts = new List<Artifact>();
             Connections = new List<CircleConnection>();
             Radius = radius;
             CenterX = 0;
@@ -210,7 +214,7 @@ namespace WuLangSpellcraft.Core
             }
         }
 
-        private ElementType GetDominantElement()
+        public ElementType GetDominantElement()
         {
             var elementCounts = Talismans
                 .GroupBy(t => t.PrimaryElement.Type)
@@ -276,9 +280,180 @@ namespace WuLangSpellcraft.Core
             };
         }
 
+        /// <summary>
+        /// Attaches an artifact to this magic circle
+        /// </summary>
+        public bool AttachArtifact(Artifact artifact)
+        {
+            if (AttachedArtifacts.Contains(artifact))
+                return false;
+
+            AttachedArtifacts.Add(artifact);
+            RecalculateProperties(); // Artifacts may affect circle properties
+            return true;
+        }
+
+        /// <summary>
+        /// Detaches an artifact from this magic circle
+        /// </summary>
+        public bool DetachArtifact(Artifact artifact)
+        {
+            if (AttachedArtifacts.Remove(artifact))
+            {
+                RecalculateProperties();
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Creates an artifact using the Forge element with another element
+        /// </summary>
+        public Artifact? CreateElementalArtifact(ElementType forgeElement, ElementType targetElement)
+        {
+            // Check if we have forge element
+            if (forgeElement != ElementType.Forge)
+                return null;
+
+            // Determine artifact type based on target element
+            var artifactType = targetElement switch
+            {
+                ElementType.Water => ArtifactType.ChaliceOfFlow,
+                ElementType.Fire => ArtifactType.CrucibleOfPower,
+                ElementType.Earth => ArtifactType.FoundationStone,
+                ElementType.Metal => ArtifactType.ConductorsRing,
+                ElementType.Wood => ArtifactType.LivingCatalyst,
+                ElementType.Lightning => ArtifactType.StormCore,
+                ElementType.Wind => ArtifactType.EtherealAnchor,
+                ElementType.Light => ArtifactType.BeaconOfTruth,
+                ElementType.Dark => ArtifactType.ShadowVault,
+                ElementType.Chaos => ArtifactType.WildcardRelic,
+                ElementType.Void => ArtifactType.NullAnchor,
+                _ => (ArtifactType?)null
+            };
+
+            if (artifactType == null)
+                return null;
+
+            var artifactName = $"{targetElement} {artifactType}";
+            return new ElementalArtifact(artifactType.Value, forgeElement, targetElement, artifactName);
+        }
+
+        /// <summary>
+        /// Creates a spell-imbued artifact by sacrificing this circle
+        /// </summary>
+        public SpellArtifact? CreateSpellArtifact(string artifactName, Artifact? baseArtifact = null)
+        {
+            // Must have at least one talisman to create a spell artifact
+            if (Talismans.Count == 0)
+                return null;
+
+            // Create the spell artifact with this circle's pattern
+            var spellArtifact = new SpellArtifact(artifactName, this);
+
+            // If using a base artifact, enhance the spell artifact
+            if (baseArtifact != null)
+            {
+                spellArtifact.PowerLevel += baseArtifact.PowerLevel * 0.5;
+                spellArtifact.EnergyCapacity += baseArtifact.EnergyCapacity * 0.3;
+            }
+
+            return spellArtifact;
+        }
+
+        /// <summary>
+        /// Checks if this circle can create derived elements
+        /// </summary>
+        public List<ElementType> GetPossibleDerivedElements()
+        {
+            var possibleElements = new List<ElementType>();
+            var elementCounts = new Dictionary<ElementType, int>();
+
+            // Count available elements
+            foreach (var talisman in Talismans)
+            {
+                var elementType = talisman.PrimaryElement.Type;
+                elementCounts[elementType] = elementCounts.GetValueOrDefault(elementType, 0) + 1;
+            }
+
+            // Check for possible derived elements
+            var baseElements = new[] { ElementType.Water, ElementType.Fire, ElementType.Earth, ElementType.Metal, ElementType.Wood };
+            
+            for (int i = 0; i < baseElements.Length; i++)
+            {
+                for (int j = i + 1; j < baseElements.Length; j++)
+                {
+                    var element1 = baseElements[i];
+                    var element2 = baseElements[j];
+                    
+                    if (elementCounts.GetValueOrDefault(element1, 0) > 0 && 
+                        elementCounts.GetValueOrDefault(element2, 0) > 0)
+                    {
+                        var derivedElement = Element.TryCreateDerivedElement(element1, element2);
+                        if (derivedElement.HasValue && !possibleElements.Contains(derivedElement.Value))
+                        {
+                            possibleElements.Add(derivedElement.Value);
+                        }
+                    }
+                }
+            }
+
+            // Check for Chaos (need all 5 base elements)
+            if (baseElements.All(e => elementCounts.GetValueOrDefault(e, 0) > 0))
+            {
+                possibleElements.Add(ElementType.Chaos);
+            }
+
+            return possibleElements;
+        }
+
+        /// <summary>
+        /// Creates a copy of this magic circle for spell imbuement
+        /// </summary>
+        public MagicCircle Clone()
+        {
+            var clone = new MagicCircle(Name + " (Copy)", Radius)
+            {
+                CenterX = CenterX,
+                CenterY = CenterY,
+                Layer = Layer,
+                IsActive = IsActive
+            };
+
+            // Clone talismans
+            foreach (var talisman in Talismans)
+            {
+                var clonedTalisman = new Talisman(
+                    new Element(talisman.PrimaryElement.Type, talisman.PrimaryElement.Energy),
+                    talisman.Name
+                )
+                {
+                    X = talisman.X,
+                    Y = talisman.Y,
+                    Z = talisman.Z,
+                    PowerLevel = talisman.PowerLevel
+                };
+
+                // Clone secondary elements
+                foreach (var secondaryElement in talisman.SecondaryElements)
+                {
+                    clonedTalisman.SecondaryElements.Add(
+                        new Element(secondaryElement.Type, secondaryElement.Energy));
+                }
+
+                clone.Talismans.Add(clonedTalisman);
+            }
+
+            clone.RecalculateProperties();
+            return clone;
+        }
+
         public override string ToString()
         {
-            return $"{Name}: {Talismans.Count} talismans, Power: {PowerOutput:F1}, " +
+            var artifactCount = AttachedArtifacts.Count;
+            var artifactText = artifactCount > 0 ? $", {artifactCount} artifacts" : "";
+            
+            return $"{Name}: {Talismans.Count} talismans{artifactText}, Power: {PowerOutput:F1}, " +
                    $"Stability: {Stability:F2}, Efficiency: {Efficiency:F2}";
         }
     }

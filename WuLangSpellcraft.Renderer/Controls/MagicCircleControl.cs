@@ -409,11 +409,22 @@ namespace WuLangSpellcraft.Renderer.Controls
         {
             return elementType switch
             {
+                // Base Elements
                 ElementType.Water => Brushes.CornflowerBlue,
                 ElementType.Fire => Brushes.OrangeRed,
                 ElementType.Earth => Brushes.SandyBrown,
                 ElementType.Metal => Brushes.Silver,
                 ElementType.Wood => Brushes.ForestGreen,
+                
+                // Derived Elements
+                ElementType.Lightning => Brushes.Magenta,
+                ElementType.Wind => Brushes.LightGray,
+                ElementType.Light => Brushes.Gold,
+                ElementType.Dark => Brushes.DarkSlateBlue,
+                ElementType.Forge => Brushes.DarkGray,
+                ElementType.Chaos => Brushes.DarkRed,
+                ElementType.Void => Brushes.Black,
+                
                 _ => Brushes.Gray
             };
         }

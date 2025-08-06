@@ -55,17 +55,6 @@
                     <StackPanel Margin="10">
                         <TextBlock Text="Talisman Library" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                         
-                        <!-- Element Filter -->
-                        <GroupBox Header="Filter by Element" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel>
-                                <CheckBox x:Name="WaterFilter" Content="Water (水)" Foreground="CornflowerBlue" IsChecked="True" Margin="0,2"/>
-                                <CheckBox x:Name="FireFilter" Content="Fire (火)" Foreground="OrangeRed" IsChecked="True" Margin="0,2"/>
-                                <CheckBox x:Name="EarthFilter" Content="Earth (土)" Foreground="SandyBrown" IsChecked="True" Margin="0,2"/>
-                                <CheckBox x:Name="MetalFilter" Content="Metal (金)" Foreground="Silver" IsChecked="True" Margin="0,2"/>
-                                <CheckBox x:Name="WoodFilter" Content="Wood (木)" Foreground="ForestGreen" IsChecked="True" Margin="0,2"/>
-                            </StackPanel>
-                        </GroupBox>
-                        
                         <!-- Talisman List -->
                         <GroupBox Header="Available Talismans" Foreground="White">
                             <StackPanel x:Name="TalismanList">

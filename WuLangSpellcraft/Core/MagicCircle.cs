@@ -57,6 +57,26 @@ namespace WuLangSpellcraft.Core
         }
 
         /// <summary>
+        /// Internal constructor for deserialization that preserves the ID
+        /// </summary>
+        internal MagicCircle(Guid id, string? name = null, double radius = 5.0)
+        {
+            Id = id;
+            Name = name ?? $"Circle_{Id.ToString()[..8]}";
+            Talismans = new List<Talisman>();
+            AttachedArtifacts = new List<Artifact>();
+            Connections = new List<CircleConnection>();
+            NestedCircles = new List<MagicCircle>();
+            Radius = radius;
+            CenterX = 0;
+            CenterY = 0;
+            Layer = 0;
+            IsActive = true;
+            NestedScale = 1.0;
+            CompositionType = CompositionType.Simple;
+        }
+
+        /// <summary>
         /// Adds a talisman to the circle at a specific angle
         /// </summary>
         public bool AddTalisman(Talisman talisman, double angleRadians)

@@ -222,7 +222,7 @@ namespace WuLangSpellcraft.Core.Serialization
 
         public MagicCircle ToMagicCircle()
         {
-            var circle = new MagicCircle(Name, Radius)
+            var circle = new MagicCircle(Id, Name, Radius)
             {
                 CenterX = CenterX,
                 CenterY = CenterY,

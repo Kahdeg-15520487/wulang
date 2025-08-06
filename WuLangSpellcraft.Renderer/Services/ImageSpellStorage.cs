@@ -18,6 +18,7 @@ using ImageSharpPointF = SixLabors.ImageSharp.PointF;
 using ImageSharpFont = SixLabors.Fonts.Font;
 using ImageSharpSystemFonts = SixLabors.Fonts.SystemFonts;
 using ImageSharpFontStyle = SixLabors.Fonts.FontStyle;
+using ImageSharpPen = SixLabors.ImageSharp.Drawing.Processing.Pen;
 
 namespace WuLangSpellcraft.Renderer.Services
 {
@@ -471,6 +472,315 @@ namespace WuLangSpellcraft.Renderer.Services
             {
                 var spellData = ExtractMetadataFromImage(filePath);
                 return !string.IsNullOrEmpty(spellData);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// Saves a composition (multiple circles) as a PNG image with spell data encoded in metadata
+        /// </summary>
+        public static void SaveCompositionAsImage(List<MagicCircle> circles, string filePath, string compositionName = "Composition")
+        {
+            try
+            {
+                // Create a spell configuration from the circle list
+                var spellConfig = new SpellConfiguration(compositionName, $"Composition with {circles.Count} circles");
+                
+                // Add all circles
+                foreach (var circle in circles)
+                {
+                    spellConfig.AddCircle(circle);
+                }
+                
+                // Add connections between circles (avoid duplicates)
+                var addedConnections = new HashSet<string>();
+                Console.WriteLine($"[SAVE] Saving connections for {circles.Count} circles...");
+                
+                foreach (var circle in circles)
+                {
+                    Console.WriteLine($"[SAVE] Circle {circle.Name} has {circle.Connections.Count} connections");
+                    foreach (var connection in circle.Connections)
+                    {
+                        Console.WriteLine($"[SAVE]   Connection: {connection.Source.Name} -> {connection.Target.Name} ({connection.Type})");
+                        
+                        // Only add connections where the target is also in our circle list
+                        if (circles.Contains(connection.Target))
+                        {
+                            // Create a unique key to avoid duplicates (connections are bidirectional)
+                            var connectionKey = $"{Math.Min(connection.Source.Id.GetHashCode(), connection.Target.Id.GetHashCode())}-{Math.Max(connection.Source.Id.GetHashCode(), connection.Target.Id.GetHashCode())}";
+                            
+                            if (!addedConnections.Contains(connectionKey))
+                            {
+                                spellConfig.AddConnection(connection);
+                                addedConnections.Add(connectionKey);
+                                Console.WriteLine($"[SAVE]   ✓ Added connection to spell config: {connection.Source.Name} -> {connection.Target.Name}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[SAVE]   ⚠ Duplicate connection skipped: {connection.Source.Name} -> {connection.Target.Name}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[SAVE]   ✗ Target circle not in save list: {connection.Target.Name}");
+                        }
+                    }
+                }
+                
+                Console.WriteLine($"[SAVE] Final spell config has {spellConfig.Connections.Count} connections");
+                
+                // Create a programmatic rendering of the composition
+                var image = RenderCompositionToImage(circles);
+                
+                // Serialize the spell configuration
+                var spellJson = SpellSerializer.SerializeSpell(spellConfig);
+                
+                // Save as PNG with metadata
+                SaveImageWithMetadata(image, spellJson, filePath);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to save composition image: {ex.Message}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// Loads a composition (multiple circles) from a PNG image with spell data in metadata
+        /// </summary>
+        public static List<MagicCircle>? LoadCompositionFromImage(string filePath)
+        {
+            try
+            {
+                // Extract spell data from image metadata
+                var spellJson = ExtractMetadataFromImage(filePath);
+                
+                if (string.IsNullOrEmpty(spellJson))
+                    return null;
+                
+                // Try to deserialize as spell configuration first
+                try
+                {
+                    var spellConfig = SpellSerializer.DeserializeSpell(spellJson);
+                    var circles = new List<MagicCircle>();
+                    
+                    // Convert circle data back to magic circles
+                    foreach (var circleData in spellConfig.Circles)
+                    {
+                        circles.Add(circleData.ToMagicCircle());
+                    }
+                    
+                    // Restore connections between circles
+                    var restoredConnections = new HashSet<string>();
+                    Console.WriteLine($"[LOAD] Restoring {spellConfig.Connections.Count} connections...");
+                    
+                    foreach (var connectionData in spellConfig.Connections)
+                    {
+                        var sourceCircle = circles.FirstOrDefault(c => c.Id == connectionData.SourceId);
+                        var targetCircle = circles.FirstOrDefault(c => c.Id == connectionData.TargetId);
+                        
+                        Console.WriteLine($"[LOAD] Connection: {connectionData.SourceId} -> {connectionData.TargetId} ({connectionData.Type})");
+                        Console.WriteLine($"[LOAD] Source found: {sourceCircle?.Name}, Target found: {targetCircle?.Name}");
+                        
+                        if (sourceCircle != null && targetCircle != null)
+                        {
+                            // Create a unique key to avoid duplicate connections
+                            var connectionKey = $"{Math.Min(sourceCircle.Id.GetHashCode(), targetCircle.Id.GetHashCode())}-{Math.Max(sourceCircle.Id.GetHashCode(), targetCircle.Id.GetHashCode())}";
+                            
+                            if (!restoredConnections.Contains(connectionKey))
+                            {
+                                // Clear any existing connections between these circles first
+                                sourceCircle.Connections.RemoveAll(c => c.Target == targetCircle);
+                                targetCircle.Connections.RemoveAll(c => c.Target == sourceCircle);
+                                
+                                // Create the connection
+                                var connection = sourceCircle.ConnectTo(targetCircle, connectionData.Type);
+                                connection.Strength = connectionData.Strength;
+                                connection.IsActive = connectionData.IsActive;
+                                
+                                Console.WriteLine($"[LOAD] ✓ Restored connection: {sourceCircle.Name} -> {targetCircle.Name} (Strength: {connection.Strength})");
+                                restoredConnections.Add(connectionKey);
+                            }
+                        }
+                    }
+                    
+                    // Debug: Check final connection counts
+                    foreach (var circle in circles)
+                    {
+                        Console.WriteLine($"[LOAD] Circle {circle.Name} final connections: {circle.Connections.Count}");
+                    }
+                    
+                    return circles;
+                }
+                catch
+                {
+                    // Fall back to single circle if it's not a composition
+                    var singleCircle = SpellSerializer.DeserializeCircle(spellJson);
+                    return new List<MagicCircle> { singleCircle };
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to load composition from image: {ex.Message}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// Renders a composition of multiple circles to an ImageSharp image
+        /// </summary>
+        private static Image<Rgba32> RenderCompositionToImage(List<MagicCircle> circles)
+        {
+            const int baseSize = 2400; // Larger canvas for compositions
+            
+            var image = new Image<Rgba32>(baseSize, baseSize);
+            
+            image.Mutate(ctx =>
+            {
+                // Fill background
+                ctx.Fill(ImageSharpColor.FromRgb(46, 46, 48));
+                
+                if (!circles.Any()) return;
+                
+                // Calculate layout for multiple circles
+                var centerX = baseSize / 2f;
+                var centerY = baseSize / 2f;
+                
+                // Main circle at center
+                var mainCircle = circles[0];
+                RenderSingleCircleToContext(ctx, mainCircle, centerX, centerY, 300);
+                
+                // Other circles around the main circle
+                var otherCircles = circles.Skip(1).ToList();
+                for (int i = 0; i < otherCircles.Count; i++)
+                {
+                    var angle = i * 2 * Math.PI / otherCircles.Count;
+                    var distance = 600; // Distance from center
+                    var x = centerX + (float)(Math.Cos(angle) * distance);
+                    var y = centerY + (float)(Math.Sin(angle) * distance);
+                    
+                    RenderSingleCircleToContext(ctx, otherCircles[i], x, y, 200);
+                }
+                
+                // Draw connection lines
+                foreach (var circle in circles)
+                {
+                    foreach (var connection in circle.Connections)
+                    {
+                        if (circles.Contains(connection.Target))
+                        {
+                            DrawConnectionLine(ctx, circles, circle, connection.Target, baseSize);
+                        }
+                    }
+                }
+                
+                // Add composition title
+                var titleFont = ImageSharpSystemFonts.CreateFont("Arial", 24, ImageSharpFontStyle.Bold);
+                var compositionName = circles.Count > 1 ? 
+                    $"Spell Composition ({circles.Count} circles)" : 
+                    mainCircle.Name;
+                    
+                ctx.DrawText(compositionName, titleFont, ImageSharpColor.White, new ImageSharpPointF(50, 50));
+            });
+            
+            return image;
+        }
+        
+        /// <summary>
+        /// Renders a single circle to the drawing context at specified position
+        /// </summary>
+        private static void RenderSingleCircleToContext(IImageProcessingContext ctx, MagicCircle circle, float centerX, float centerY, float radius)
+        {
+            // Draw main circle
+            var pen = SixLabors.ImageSharp.Drawing.Processing.Pens.Solid(ImageSharpColor.Gold, 3);
+            ctx.Draw(pen, new EllipsePolygon(centerX, centerY, radius));
+            
+            // Draw inner circle
+            var innerPen = SixLabors.ImageSharp.Drawing.Processing.Pens.Solid(ImageSharpColor.Gold, 2);
+            ctx.Draw(innerPen, new EllipsePolygon(centerX, centerY, radius * 0.3f));
+            
+            // Draw talismans around the circle
+            var talismanCount = circle.Talismans.Count;
+            var talismanRadius = 15f;
+            var talismanOrbitRadius = radius + 30f;
+            
+            for (int i = 0; i < talismanCount; i++)
+            {
+                var angle = (i * 2 * Math.PI / Math.Max(talismanCount, 8)) - Math.PI / 2;
+                var talismanX = centerX + (float)(Math.Cos(angle) * talismanOrbitRadius);
+                var talismanY = centerY + (float)(Math.Sin(angle) * talismanOrbitRadius);
+                
+                var talisman = circle.Talismans[i];
+                var talismanColor = GetColorForElement(talisman.PrimaryElement.Type);
+                
+                ctx.Fill(talismanColor, new EllipsePolygon(talismanX, talismanY, talismanRadius));
+                ctx.Draw(SixLabors.ImageSharp.Drawing.Processing.Pens.Solid(ImageSharpColor.White, 2), new EllipsePolygon(talismanX, talismanY, talismanRadius));
+            }
+            
+            // Draw circle name
+            var nameFont = ImageSharpSystemFonts.CreateFont("Arial", 14, ImageSharpFontStyle.Bold);
+            var textX = centerX - (circle.Name.Length * 4); // Approximate text width
+            var textY = centerY + radius + 50;
+            
+            ctx.DrawText(circle.Name, nameFont, ImageSharpColor.White, new ImageSharpPointF(textX, textY));
+        }
+        
+        /// <summary>
+        /// Draws a connection line between two circles
+        /// </summary>
+        private static void DrawConnectionLine(IImageProcessingContext ctx, List<MagicCircle> circles, MagicCircle source, MagicCircle target, int canvasSize)
+        {
+            // Calculate positions (simplified - assumes main circle at center, others around)
+            var centerX = canvasSize / 2f;
+            var centerY = canvasSize / 2f;
+            
+            float sourceX = centerX, sourceY = centerY;
+            float targetX = centerX, targetY = centerY;
+            
+            if (circles.IndexOf(source) > 0)
+            {
+                var sourceIndex = circles.IndexOf(source) - 1;
+                var sourceAngle = sourceIndex * 2 * Math.PI / (circles.Count - 1);
+                sourceX = centerX + (float)(Math.Cos(sourceAngle) * 600);
+                sourceY = centerY + (float)(Math.Sin(sourceAngle) * 600);
+            }
+            
+            if (circles.IndexOf(target) > 0)
+            {
+                var targetIndex = circles.IndexOf(target) - 1;
+                var targetAngle = targetIndex * 2 * Math.PI / (circles.Count - 1);
+                targetX = centerX + (float)(Math.Cos(targetAngle) * 600);
+                targetY = centerY + (float)(Math.Sin(targetAngle) * 600);
+            }
+            
+            var connectionColor = ImageSharpColor.Yellow; // Could vary by connection type
+            var thickness = 2f;
+            
+            ctx.DrawLine(SixLabors.ImageSharp.Drawing.Processing.Pens.Solid(connectionColor, thickness), new ImageSharpPointF(sourceX, sourceY), new ImageSharpPointF(targetX, targetY));
+        }
+        
+        /// <summary>
+        /// Checks if an image file contains spell composition data
+        /// </summary>
+        public static bool IsCompositionImage(string filePath)
+        {
+            try
+            {
+                var spellData = ExtractMetadataFromImage(filePath);
+                if (string.IsNullOrEmpty(spellData))
+                    return false;
+                
+                // Try to deserialize as composition first
+                try
+                {
+                    var spellConfig = SpellSerializer.DeserializeSpell(spellData);
+                    return spellConfig.Circles.Count > 1 || spellConfig.Connections.Any();
+                }
+                catch
+                {
+                    return false;
+                }
             }
             catch
             {

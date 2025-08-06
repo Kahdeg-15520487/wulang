@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using Microsoft.Win32;
@@ -21,11 +22,16 @@ public partial class MainWindow : Window
     private readonly Random _random = new();
     private readonly List<MagicCircle> _allCircles = new(); // Track all circles in the composition
 
+    // Canvas panning variables
+    private bool _isPanning = false;
+    private Point _lastPanPosition;
+
     public MainWindow()
     {
         InitializeComponent();
         InitializeTalismanLibrary();
         InitializeCompositionControls();
+        InitializeCanvasPanning();
         CreateNewCircle();
         UpdateCircleCapacityLabel(); // Initialize capacity label
         
@@ -105,6 +111,19 @@ public partial class MainWindow : Window
         UpdateCompositionList();
     }
 
+    private void InitializeCanvasPanning()
+    {
+        var mainCanvas = FindName("MainCanvas") as Canvas;
+        if (mainCanvas != null)
+        {
+            // Add mouse event handlers for panning
+            mainCanvas.PreviewMouseDown += MainCanvas_PreviewMouseDown;
+            mainCanvas.PreviewMouseUp += MainCanvas_PreviewMouseUp;
+            mainCanvas.PreviewMouseMove += MainCanvas_PreviewMouseMove;
+            mainCanvas.MouseLeave += MainCanvas_MouseLeave;
+        }
+    }
+
     private void CreateTalisman_Click(object sender, RoutedEventArgs e)
     {
         var circleViewer = FindName("CircleViewer") as MagicCircleControl;
@@ -117,18 +136,10 @@ public partial class MainWindow : Window
             
             if (_currentCircle.AddTalisman(talisman))
             {
-                if (circleViewer != null)
-                {
-                    // Force the control to update by setting the property to null first, then back to the circle
-                    circleViewer.MagicCircle = null;
-                    circleViewer.MagicCircle = _currentCircle;
-                    
-                    // Also force a visual update
-                    circleViewer.InvalidateVisual();
-                    circleViewer.UpdateLayout();
-                }
+                // Update all visual representations of circles
+                UpdateCircleVisualization(); // This will update both single circle view and composition view
                 UpdateCircleStats();
-                UpdatePreview(); // Add preview update
+                UpdatePreview();
                 if (statusText != null)
                     statusText.Text = $"Added {elementType} talisman to circle (Total: {_currentCircle.Talismans.Count})";
             }
@@ -701,6 +712,7 @@ public partial class MainWindow : Window
             // Force the control to update
             circleViewer.MagicCircle = null;
             circleViewer.MagicCircle = _currentCircle;
+            circleViewer.IsSelected = _selectedCircle == _currentCircle; // Set selection state
             circleViewer.InvalidateVisual();
             circleViewer.UpdateLayout();
             
@@ -716,6 +728,9 @@ public partial class MainWindow : Window
     {
         if (!_allCircles.Any()) return;
 
+        // Clear any existing connection lines
+        ClearConnectionLines(mainCanvas);
+
         // Hide the main circle viewer when showing composition
         var circleViewer = FindName("CircleViewer") as MagicCircleControl;
         if (circleViewer != null)
@@ -730,14 +745,7 @@ public partial class MainWindow : Window
 
         // Main circle at center
         var mainCircle = _allCircles[0];
-        var mainCircleControl = new MagicCircleControl
-        {
-            MagicCircle = mainCircle,
-            Width = 400,
-            Height = 400,
-            ShowConnections = true,
-            ShowEffects = true
-        };
+        var mainCircleControl = CreateDraggableCircleControl(mainCircle, 400, 400);
 
         Canvas.SetLeft(mainCircleControl, centerX - 200);
         Canvas.SetTop(mainCircleControl, centerY - 200);
@@ -754,22 +762,171 @@ public partial class MainWindow : Window
             var x = centerX + Math.Cos(angle) * distance;
             var y = centerY + Math.Sin(angle) * distance;
 
-            var connectedControl = new MagicCircleControl
-            {
-                MagicCircle = connectedCircle,
-                Width = 250,
-                Height = 250,
-                ShowConnections = false,
-                ShowEffects = true
-            };
+            var connectedControl = CreateDraggableCircleControl(connectedCircle, 250, 250);
 
             Canvas.SetLeft(connectedControl, x - 125);
             Canvas.SetTop(connectedControl, y - 125);
             mainCanvas.Children.Add(connectedControl);
-
-            // Draw connection line
-            DrawConnectionLine(mainCanvas, centerX, centerY, x, y, GetConnectionBetween(mainCircle, connectedCircle));
         }
+
+        // Draw all connection lines
+        RedrawConnectionLines(mainCanvas);
+    }
+
+    private MagicCircleControl CreateDraggableCircleControl(MagicCircle circle, double width, double height)
+    {
+        var control = new MagicCircleControl
+        {
+            MagicCircle = circle,
+            Width = width,
+            Height = height,
+            ShowConnections = false, // Don't show individual connections, we'll draw them globally
+            ShowEffects = true,
+            IsSelected = _selectedCircle == circle, // Set initial selection state
+            Tag = circle // Store reference for easy identification
+        };
+
+        // Use the Selected event from MagicCircleControl for cleaner separation of selection and dragging
+        control.Selected += (s, e) => {
+            if (s is MagicCircleControl clickedControl && clickedControl.MagicCircle != null)
+            {
+                SelectCircle(clickedControl.MagicCircle);
+            }
+        };
+
+        // Add real-time position change handler for smooth connection updates
+        control.PositionChanging += (s, e) => {
+            if (s is MagicCircleControl draggedControl)
+            {
+                var canvas = FindParentCanvas(draggedControl);
+                if (canvas != null)
+                {
+                    RedrawConnectionLines(canvas);
+                }
+            }
+        };
+
+        // Add final position change handler
+        control.PositionChanged += (s, e) => {
+            if (s is MagicCircleControl draggedControl)
+            {
+                var canvas = FindParentCanvas(draggedControl);
+                if (canvas != null)
+                {
+                    RedrawConnectionLines(canvas);
+                }
+            }
+        };
+
+        return control;
+    }
+
+    private void SelectCircle(MagicCircle circle)
+    {
+        // Update the selected circle
+        _selectedCircle = circle;
+        _currentCircle = circle; // Also update the current working circle
+        
+        // Update all circle controls to reflect selection state
+        var mainCanvas = FindName("MainCanvas") as Canvas;
+        if (mainCanvas != null)
+        {
+            var circleControls = mainCanvas.Children.OfType<MagicCircleControl>().ToList();
+            foreach (var control in circleControls)
+            {
+                control.IsSelected = control.MagicCircle == _selectedCircle;
+            }
+        }
+        
+        // Update the main circle viewer to show the selected circle
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        if (circleViewer != null)
+        {
+            circleViewer.MagicCircle = _selectedCircle;
+            circleViewer.IsSelected = true;
+            circleViewer.Visibility = Visibility.Visible;
+        }
+        
+        // Update UI elements
+        UpdateCircleStats();
+        UpdatePreview();
+        UpdateCompositionList();
+        
+        // Update status
+        var statusText = FindName("StatusText") as TextBlock;
+        if (statusText != null)
+            statusText.Text = $"Selected circle: {circle.Name} (Layer: {circle.Layer})";
+    }
+
+    private void ClearConnectionLines(Canvas canvas)
+    {
+        // Remove existing connection lines (identified by their tag)
+        var linesToRemove = canvas.Children.OfType<Line>()
+            .Where(l => l.Tag?.ToString() == "ConnectionLine")
+            .ToList();
+        
+        foreach (var line in linesToRemove)
+        {
+            canvas.Children.Remove(line);
+        }
+
+        // Remove connection labels
+        var labelsToRemove = canvas.Children.OfType<TextBlock>()
+            .Where(t => t.Tag?.ToString() == "ConnectionLabel")
+            .ToList();
+            
+        foreach (var label in labelsToRemove)
+        {
+            canvas.Children.Remove(label);
+        }
+    }
+
+    private void RedrawConnectionLines(Canvas canvas)
+    {
+        ClearConnectionLines(canvas);
+
+        var circleControls = canvas.Children.OfType<MagicCircleControl>().ToList();
+        
+        foreach (var sourceControl in circleControls)
+        {
+            if (sourceControl.MagicCircle?.Connections == null) continue;
+
+            var sourceCenter = GetCircleControlCenter(sourceControl);
+
+            foreach (var connection in sourceControl.MagicCircle.Connections)
+            {
+                var targetControl = circleControls.FirstOrDefault(c => c.MagicCircle == connection.Target);
+                if (targetControl != null)
+                {
+                    var targetCenter = GetCircleControlCenter(targetControl);
+                    DrawConnectionLine(canvas, sourceCenter.X, sourceCenter.Y, targetCenter.X, targetCenter.Y, connection);
+                }
+            }
+        }
+    }
+
+    private Point GetCircleControlCenter(MagicCircleControl control)
+    {
+        var left = Canvas.GetLeft(control);
+        var top = Canvas.GetTop(control);
+        
+        if (double.IsNaN(left)) left = 0;
+        if (double.IsNaN(top)) top = 0;
+        
+        return new Point(left + control.Width / 2, top + control.Height / 2);
+    }
+
+    private Canvas? FindParentCanvas(FrameworkElement element)
+    {
+        var parent = element.Parent;
+        while (parent != null)
+        {
+            if (parent is Canvas canvas)
+                return canvas;
+            
+            parent = parent is FrameworkElement fe ? fe.Parent : null;
+        }
+        return null;
     }
 
     private bool IsNestedCircle(MagicCircle circle)
@@ -792,8 +949,11 @@ public partial class MainWindow : Window
             Y2 = y2,
             Stroke = GetConnectionBrush(connection),
             StrokeThickness = GetConnectionThickness(connection),
-            Opacity = 0.8
+            Opacity = 0.8,
+            Tag = "ConnectionLine" // Tag for easy identification and removal
         };
+
+        canvas.Children.Add(line);
 
         // Add connection type label
         if (connection != null)
@@ -810,15 +970,14 @@ public partial class MainWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
                 Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0)),
-                Padding = new Thickness(3)
+                Padding = new Thickness(3),
+                Tag = "ConnectionLabel" // Tag for easy identification and removal
             };
 
             Canvas.SetLeft(label, midX - 20);
             Canvas.SetTop(label, midY - 10);
             canvas.Children.Add(label);
         }
-
-        canvas.Children.Add(line);
     }
 
     private Brush GetConnectionBrush(CircleConnection? connection)
@@ -853,12 +1012,37 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Update the visual preview circle
+        UpdatePreviewVisual();
+        
         UpdateBasicInfo();
         UpdatePowerAnalysis();
         UpdateElementBalance();
         UpdateEffectsList();
         UpdateCompositionDetails();
         UpdatePerformanceMetrics();
+    }
+
+    private void UpdatePreviewVisual()
+    {
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        if (circleViewer != null && _currentCircle != null)
+        {
+            // Method 1: Use the RefreshTrigger property to force a change
+            circleViewer.RefreshTrigger = DateTime.Now;
+            
+            // Method 2: Force refresh using the ForceRefresh method
+            circleViewer.ForceRefresh();
+            
+            // Method 3: Also try the null assignment approach as backup
+            circleViewer.MagicCircle = null;
+            circleViewer.UpdateLayout();
+            
+            // Re-assign the circle
+            circleViewer.MagicCircle = _currentCircle;
+            circleViewer.InvalidateVisual();
+            circleViewer.UpdateLayout();
+        }
     }
 
     private void ClearPreview()
@@ -1594,6 +1778,82 @@ public partial class MainWindow : Window
         var statusText = FindName("StatusText") as TextBlock;
         if (statusText != null)
             statusText.Text = message;
+    }
+
+    #endregion
+
+    #region Canvas Panning
+
+    private void MainCanvas_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.MiddleButton == MouseButtonState.Pressed)
+        {
+            _isPanning = true;
+            _lastPanPosition = e.GetPosition((Canvas)sender);
+            
+            var canvas = (Canvas)sender;
+            canvas.CaptureMouse();
+            canvas.Cursor = Cursors.SizeAll;
+            
+            e.Handled = true;
+        }
+    }
+
+    private void MainCanvas_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.MiddleButton == MouseButtonState.Released && _isPanning)
+        {
+            _isPanning = false;
+            
+            var canvas = (Canvas)sender;
+            canvas.ReleaseMouseCapture();
+            canvas.Cursor = Cursors.Arrow;
+            
+            e.Handled = true;
+        }
+    }
+
+    private void MainCanvas_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_isPanning && e.MiddleButton == MouseButtonState.Pressed)
+        {
+            var canvas = (Canvas)sender;
+            var scrollViewer = FindName("CanvasScrollViewer") as ScrollViewer;
+            
+            if (scrollViewer != null)
+            {
+                var currentPosition = e.GetPosition(canvas);
+                var deltaX = _lastPanPosition.X - currentPosition.X;
+                var deltaY = _lastPanPosition.Y - currentPosition.Y;
+                
+                // Apply pan by adjusting scroll viewer offsets
+                var newHorizontalOffset = scrollViewer.HorizontalOffset + deltaX;
+                var newVerticalOffset = scrollViewer.VerticalOffset + deltaY;
+                
+                // Clamp to valid scroll ranges
+                newHorizontalOffset = Math.Max(0, Math.Min(newHorizontalOffset, scrollViewer.ScrollableWidth));
+                newVerticalOffset = Math.Max(0, Math.Min(newVerticalOffset, scrollViewer.ScrollableHeight));
+                
+                scrollViewer.ScrollToHorizontalOffset(newHorizontalOffset);
+                scrollViewer.ScrollToVerticalOffset(newVerticalOffset);
+                
+                _lastPanPosition = currentPosition;
+            }
+            
+            e.Handled = true;
+        }
+    }
+
+    private void MainCanvas_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (_isPanning)
+        {
+            _isPanning = false;
+            
+            var canvas = (Canvas)sender;
+            canvas.ReleaseMouseCapture();
+            canvas.Cursor = Cursors.Arrow;
+        }
     }
 
     #endregion

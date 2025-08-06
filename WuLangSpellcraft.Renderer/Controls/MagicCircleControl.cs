@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using WuLangSpellcraft.Core;
@@ -23,6 +24,21 @@ namespace WuLangSpellcraft.Renderer.Controls
             DependencyProperty.Register(nameof(ShowEffects), typeof(bool), typeof(MagicCircleControl),
                 new PropertyMetadata(true, OnRenderPropertyChanged));
 
+        public static readonly DependencyProperty IsSelectedProperty =
+            DependencyProperty.Register(nameof(IsSelected), typeof(bool), typeof(MagicCircleControl),
+                new PropertyMetadata(false, OnRenderPropertyChanged));
+
+        public static readonly DependencyProperty RefreshTriggerProperty =
+            DependencyProperty.Register(nameof(RefreshTrigger), typeof(DateTime), typeof(MagicCircleControl),
+                new PropertyMetadata(DateTime.Now, OnRenderPropertyChanged));
+
+        // Event for when the circle position changes due to dragging
+        public event EventHandler? PositionChanged;
+        public event EventHandler? PositionChanging; // For real-time updates during drag
+        
+        // Event for when the circle is selected (clicked)
+        public event EventHandler? Selected;
+
         public MagicCircle? MagicCircle
         {
             get => (MagicCircle?)GetValue(MagicCircleProperty);
@@ -41,6 +57,18 @@ namespace WuLangSpellcraft.Renderer.Controls
             set => SetValue(ShowEffectsProperty, value);
         }
 
+        public bool IsSelected
+        {
+            get => (bool)GetValue(IsSelectedProperty);
+            set => SetValue(IsSelectedProperty, value);
+        }
+
+        public DateTime RefreshTrigger
+        {
+            get => (DateTime)GetValue(RefreshTriggerProperty);
+            set => SetValue(RefreshTriggerProperty, value);
+        }
+
         // Dynamic sizing constants
         private const double BasePixelsPerUnit = 20; // 20 pixels per logical radius unit
         private const double MinCircleRadius = 60;   // Minimum visual radius
@@ -48,11 +76,26 @@ namespace WuLangSpellcraft.Renderer.Controls
         private const double BaseTalismanSize = 40;  // Base talisman size
         private const double CanvasPadding = 40;
 
+        // Drag functionality
+        private bool _isDragging = false;
+        private bool _mousePressed = false;
+        private Point _lastMousePosition;
+        private Point _pressPosition;
+        private Canvas? _parentCanvas;
+        private const double DragThreshold = 5.0; // Minimum distance to start dragging
+
         public MagicCircleControl()
         {
             UpdateControlSize();
             ClipToBounds = false; // Allow talismans to be fully visible
             RenderMagicCircle();
+            
+            // Enable mouse interaction
+            this.MouseLeftButtonDown += OnMouseLeftButtonDown;
+            this.MouseLeftButtonUp += OnMouseLeftButtonUp;
+            this.MouseMove += OnMouseMove;
+            this.MouseLeave += OnMouseLeave;
+            this.Cursor = Cursors.Hand;
         }
 
         private void UpdateControlSize()
@@ -118,6 +161,21 @@ namespace WuLangSpellcraft.Renderer.Controls
                 Content = CreateEmptyCircle();
                 return;
             }
+
+            // Add a visible indicator showing the current talisman count and render timestamp
+            var debugInfo = new TextBlock
+            {
+                Text = $"Talismans: {MagicCircle.Talismans.Count} | Rendered: {DateTime.Now:HH:mm:ss.fff}",
+                FontSize = 10,
+                Foreground = Brushes.Yellow,
+                Background = Brushes.Black,
+                Padding = new Thickness(3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            Canvas.SetLeft(debugInfo, 5);
+            Canvas.SetTop(debugInfo, 5);
+            canvas.Children.Add(debugInfo);
 
             // Draw main circle background
             DrawBackgroundCircle(canvas);
@@ -204,6 +262,12 @@ namespace WuLangSpellcraft.Renderer.Controls
             Canvas.SetTop(innerCircle, centerY - innerRadius);
             canvas.Children.Add(innerCircle);
 
+            // Draw selection indicator if this circle is selected
+            if (IsSelected)
+            {
+                DrawSelectionIndicator(canvas, centerX, centerY, visualRadius);
+            }
+
             // Draw position markers
             DrawPositionMarkers(canvas, centerX, centerY);
         }
@@ -234,6 +298,76 @@ namespace WuLangSpellcraft.Renderer.Controls
                 Canvas.SetTop(marker, y - 4);
                 canvas.Children.Add(marker);
             }
+        }
+
+        private void DrawSelectionIndicator(Canvas canvas, double centerX, double centerY, double visualRadius)
+        {
+            // Outer selection ring
+            var selectionRadius = visualRadius + 15; // Slightly larger than the main circle
+            var selectionRing = new Ellipse
+            {
+                Width = selectionRadius * 2,
+                Height = selectionRadius * 2,
+                Stroke = Brushes.Gold,
+                StrokeThickness = 4,
+                Fill = Brushes.Transparent,
+                Opacity = 0.8,
+                StrokeDashArray = new DoubleCollection { 10, 5 } // Dashed line for animated effect
+            };
+
+            Canvas.SetLeft(selectionRing, centerX - selectionRadius);
+            Canvas.SetTop(selectionRing, centerY - selectionRadius);
+            canvas.Children.Add(selectionRing);
+
+            // Selection corner indicators (like selection handles)
+            var cornerSize = 12;
+            var cornerDistance = selectionRadius + 10;
+            var corners = new[]
+            {
+                new Point(centerX, centerY - cornerDistance), // Top
+                new Point(centerX + cornerDistance, centerY), // Right
+                new Point(centerX, centerY + cornerDistance), // Bottom
+                new Point(centerX - cornerDistance, centerY)  // Left
+            };
+
+            foreach (var corner in corners)
+            {
+                var cornerIndicator = new Rectangle
+                {
+                    Width = cornerSize,
+                    Height = cornerSize,
+                    Fill = Brushes.Gold,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
+                    Opacity = 0.9
+                };
+
+                Canvas.SetLeft(cornerIndicator, corner.X - cornerSize / 2);
+                Canvas.SetTop(cornerIndicator, corner.Y - cornerSize / 2);
+                canvas.Children.Add(cornerIndicator);
+            }
+
+            // Add a subtle glow effect to the main circle when selected
+            var glowCircle = new Ellipse
+            {
+                Width = (visualRadius + 8) * 2,
+                Height = (visualRadius + 8) * 2,
+                Fill = Brushes.Transparent,
+                Stroke = Brushes.Gold,
+                StrokeThickness = 2,
+                Opacity = 0.3,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Gold,
+                    BlurRadius = 8,
+                    ShadowDepth = 0,
+                    Opacity = 0.6
+                }
+            };
+
+            Canvas.SetLeft(glowCircle, centerX - (visualRadius + 8));
+            Canvas.SetTop(glowCircle, centerY - (visualRadius + 8));
+            canvas.Children.Add(glowCircle);
         }
 
         private void DrawConnections(Canvas canvas)
@@ -614,6 +748,146 @@ namespace WuLangSpellcraft.Renderer.Controls
                 
                 _ => Brushes.Gray
             };
+        }
+
+        #region Mouse Event Handling
+
+        private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (MagicCircle == null) return;
+
+            // Always handle selection immediately on mouse down
+            Selected?.Invoke(this, EventArgs.Empty);
+
+            // Prepare for potential dragging
+            _mousePressed = true;
+            _parentCanvas = FindParentCanvas();
+            _pressPosition = _parentCanvas != null ? e.GetPosition(_parentCanvas) : e.GetPosition(this);
+            _lastMousePosition = _pressPosition;
+            
+            this.CaptureMouse();
+            
+            // Don't mark as handled - let the selection logic in MainWindow also process this event
+            // e.Handled = true; // Removed to allow selection to work
+        }
+
+        private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_mousePressed)
+            {
+                _mousePressed = false;
+                
+                if (_isDragging)
+                {
+                    _isDragging = false;
+                    this.Cursor = Cursors.Hand;
+                    
+                    // Update the MagicCircle's position if it has position properties
+                    if (MagicCircle != null && _parentCanvas != null)
+                    {
+                        var canvasLeft = Canvas.GetLeft(this);
+                        var canvasTop = Canvas.GetTop(this);
+                        
+                        // Update the circle's logical position
+                        MagicCircle.CenterX = canvasLeft + this.Width / 2;
+                        MagicCircle.CenterY = canvasTop + this.Height / 2;
+                        
+                        // Notify that position has changed (for connection line updates)
+                        PositionChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    
+                    e.Handled = true; // Handle the event if we were dragging
+                }
+                
+                this.ReleaseMouseCapture();
+            }
+        }
+
+        private void OnMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_mousePressed && _parentCanvas != null)
+            {
+                var currentPosition = e.GetPosition(_parentCanvas);
+                var distance = Math.Sqrt(Math.Pow(currentPosition.X - _pressPosition.X, 2) + 
+                                       Math.Pow(currentPosition.Y - _pressPosition.Y, 2));
+                
+                // Only start dragging if we've moved beyond the threshold
+                if (!_isDragging && distance > DragThreshold)
+                {
+                    _isDragging = true;
+                    this.Cursor = Cursors.SizeAll;
+                }
+                
+                // Only move the circle if we're actually dragging
+                if (_isDragging)
+                {
+                    var deltaX = currentPosition.X - _lastMousePosition.X;
+                    var deltaY = currentPosition.Y - _lastMousePosition.Y;
+                    
+                    var currentLeft = Canvas.GetLeft(this);
+                    var currentTop = Canvas.GetTop(this);
+                    
+                    // Handle NaN values (when position hasn't been set yet)
+                    if (double.IsNaN(currentLeft)) currentLeft = 0;
+                    if (double.IsNaN(currentTop)) currentTop = 0;
+                    
+                    var newLeft = currentLeft + deltaX;
+                    var newTop = currentTop + deltaY;
+                    
+                    // Constrain to canvas bounds
+                    var canvasWidth = _parentCanvas.ActualWidth;
+                    var canvasHeight = _parentCanvas.ActualHeight;
+                    
+                    newLeft = Math.Max(0, Math.Min(newLeft, canvasWidth - this.Width));
+                    newTop = Math.Max(0, Math.Min(newTop, canvasHeight - this.Height));
+                    
+                    Canvas.SetLeft(this, newLeft);
+                    Canvas.SetTop(this, newTop);
+                    
+                    // Update the circle's logical position during drag
+                    if (MagicCircle != null)
+                    {
+                        MagicCircle.CenterX = newLeft + this.Width / 2;
+                        MagicCircle.CenterY = newTop + this.Height / 2;
+                        
+                        // Notify for real-time connection updates
+                        PositionChanging?.Invoke(this, EventArgs.Empty);
+                    }
+                    
+                    _lastMousePosition = currentPosition;
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void OnMouseLeave(object sender, MouseEventArgs e)
+        {
+            if (!_isDragging)
+            {
+                this.Cursor = Cursors.Hand;
+            }
+        }
+
+        private Canvas? FindParentCanvas()
+        {
+            var parent = this.Parent;
+            while (parent != null)
+            {
+                if (parent is Canvas canvas)
+                    return canvas;
+                
+                parent = parent is FrameworkElement fe ? fe.Parent : null;
+            }
+            return null;
+        }
+
+        #endregion
+
+        public void ForceRefresh()
+        {
+            // Force a complete re-render of the circle
+            UpdateControlSize();
+            RenderMagicCircle();
         }
     }
 }

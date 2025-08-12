@@ -168,11 +168,23 @@ public partial class MainWindow : Window
         _allCircles.Clear();
         _allCircles.Add(_currentCircle);
         
-        // Update all visualization and UI elements
-        UpdateCircleVisualization(); // This will handle both the circle viewer and composition view correctly
-        UpdateCircleCapacityLabel();
-        
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
         var statusText = FindName("StatusText") as TextBlock;
+        
+        if (circleViewer != null)
+        {
+            // Force the control to update by setting the property to null first, then back to the circle
+            circleViewer.MagicCircle = null;
+            circleViewer.MagicCircle = _currentCircle;
+            
+            // Also force a visual update
+            circleViewer.InvalidateVisual();
+            circleViewer.UpdateLayout();
+        }
+        UpdateCircleStats();
+        UpdatePreview(); // Add preview update
+        UpdateCircleCapacityLabel();
+        UpdateCompositionList();
         if (statusText != null)
             statusText.Text = "Created new magic circle";
     }
@@ -199,74 +211,26 @@ public partial class MainWindow : Window
                     return;
                 }
 
-                // First try to load as composition
-                var compositionCircles = ImageSpellStorage.LoadCompositionFromImage(openFileDialog.FileName);
-                
-                if (compositionCircles != null && compositionCircles.Count > 0)
+                // Load the spell from image metadata
+                var loadedCircle = ImageSpellStorage.LoadSpellFromImage(openFileDialog.FileName);
+                if (loadedCircle != null)
                 {
-                    // Clear current state and load the composition
-                    _allCircles.Clear();
-                    _allCircles.AddRange(compositionCircles);
-                    _currentCircle = _allCircles[0];
-
-                    // Debug: Count total connections
-                    var totalConnections = _allCircles.Sum(c => c.Connections.Count);
-                    System.Diagnostics.Debug.WriteLine($"Loaded composition with {compositionCircles.Count} circles and {totalConnections} total connections");
-
-                    // Update UI
-                    UpdateCircleVisualization();
-                    UpdateCompositionList();
-                    UpdateCircleStats();
-                    UpdatePreview();
-                    UpdateCircleCapacityLabel();
-
-                    // Force a manual refresh of connections by finding the canvas and redrawing
-                    var mainCanvas = FindName("MainCanvas") as Canvas;
-                    if (mainCanvas != null)
+                    _currentCircle = loadedCircle;
+                    var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+                    if (circleViewer != null)
                     {
-                        // Small delay to ensure UI is ready, then redraw connections
-                        Dispatcher.BeginInvoke(new Action(() =>
-                        {
-                            UpdateCircleVisualization();
-                        }), System.Windows.Threading.DispatcherPriority.Render);
+                        circleViewer.MagicCircle = null;
+                        circleViewer.MagicCircle = _currentCircle;
+                        circleViewer.InvalidateVisual();
+                        circleViewer.UpdateLayout();
                     }
+                    UpdateCircleStats();
+                    UpdatePreview(); // Add preview update
+                    UpdateCircleCapacityLabel();
 
                     var statusText = FindName("StatusText") as TextBlock;
                     if (statusText != null)
-                        statusText.Text = $"Successfully loaded composition with {compositionCircles.Count} circles and {totalConnections/2} connections from {System.IO.Path.GetFileName(openFileDialog.FileName)}";
-
-                    MessageBox.Show($"Spell composition loaded successfully!\n\nLoaded {compositionCircles.Count} circles with {totalConnections/2} connections.", 
-                        "Load Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    // Try to load as single circle
-                    var loadedCircle = ImageSpellStorage.LoadSpellFromImage(openFileDialog.FileName);
-                    if (loadedCircle != null)
-                    {
-                        // Clear current state and add the loaded circle
-                        _allCircles.Clear();
-                        _allCircles.Add(loadedCircle);
-                        _currentCircle = loadedCircle;
-
-                        // Update UI
-                        UpdateCircleVisualization();
-                        UpdateCircleStats();
-                        UpdatePreview();
-                        UpdateCircleCapacityLabel();
-
-                        var statusText = FindName("StatusText") as TextBlock;
-                        if (statusText != null)
-                            statusText.Text = $"Successfully loaded spell from {System.IO.Path.GetFileName(openFileDialog.FileName)}";
-
-                        MessageBox.Show($"Spell loaded successfully!\n\nName: {loadedCircle.Name}", 
-                            "Load Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show("The selected image does not contain valid spell data.", "Invalid File", 
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
+                        statusText.Text = $"Successfully loaded spell from {System.IO.Path.GetFileName(openFileDialog.FileName)}";
                 }
             }
             catch (Exception ex)
@@ -303,34 +267,16 @@ public partial class MainWindow : Window
         {
             try
             {
-                // Check if we have a composition (multiple circles) or single circle
-                if (_allCircles.Count > 1)
-                {
-                    // Save as composition
-                    var compositionName = $"Spell Composition - {_allCircles[0].Name}";
-                    ImageSpellStorage.SaveCompositionAsImage(_allCircles, saveFileDialog.FileName, compositionName);
-                    
-                    var statusText = FindName("StatusText") as TextBlock;
-                    if (statusText != null)
-                        statusText.Text = $"Successfully saved composition with {_allCircles.Count} circles to {System.IO.Path.GetFileName(saveFileDialog.FileName)}";
+                // Save the current circle as an image with programmatic rendering
+                ImageSpellStorage.SaveSpellAsImage(_currentCircle, saveFileDialog.FileName);
 
-                    MessageBox.Show($"Spell composition saved successfully!\n\nThe composition with {_allCircles.Count} circles and their connections has been saved with the image. " +
-                        $"You can share this image and others can load the exact spell composition from it.", 
-                        "Save Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    // Save as single circle
-                    ImageSpellStorage.SaveSpellAsImage(_currentCircle, saveFileDialog.FileName);
+                var statusText = FindName("StatusText") as TextBlock;
+                if (statusText != null)
+                    statusText.Text = $"Successfully saved spell to {System.IO.Path.GetFileName(saveFileDialog.FileName)}";
 
-                    var statusText = FindName("StatusText") as TextBlock;
-                    if (statusText != null)
-                        statusText.Text = $"Successfully saved spell to {System.IO.Path.GetFileName(saveFileDialog.FileName)}";
-
-                    MessageBox.Show($"Spell saved successfully!\n\nThe spell data has been saved with the image. " +
-                        $"You can share this image and others can load the exact spell configuration from it.", 
-                        "Save Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                MessageBox.Show($"Spell saved successfully!\n\nThe spell data has been saved with the image. " +
+                    $"You can share this image and others can load the exact spell configuration from it.", 
+                    "Save Successful", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -651,11 +597,6 @@ public partial class MainWindow : Window
         connection.Strength = connectionStrength; // Set custom strength
         _allCircles.Add(connectedCircle);
         
-        // Debug: Verify connection was created
-        System.Diagnostics.Debug.WriteLine($"Created connection: {_currentCircle.Name} -> {connectedCircle.Name} ({connectionType})");
-        System.Diagnostics.Debug.WriteLine($"Source circle now has {_currentCircle.Connections.Count} connections");
-        System.Diagnostics.Debug.WriteLine($"Target circle now has {connectedCircle.Connections.Count} connections");
-        
         // Update the visualization
         UpdateCircleVisualization();
         UpdateCompositionList();
@@ -775,14 +716,8 @@ public partial class MainWindow : Window
             circleViewer.InvalidateVisual();
             circleViewer.UpdateLayout();
             
-            // Ensure the main viewer is visible in single circle mode
+            // Ensure the main viewer is visible
             circleViewer.Visibility = Visibility.Visible;
-        }
-        else if (circleViewer != null)
-        {
-            // No current circle - hide the viewer and clear it
-            circleViewer.MagicCircle = null;
-            circleViewer.Visibility = Visibility.Hidden;
         }
         
         UpdateCircleStats();
@@ -909,13 +844,7 @@ public partial class MainWindow : Window
         {
             circleViewer.MagicCircle = _selectedCircle;
             circleViewer.IsSelected = true;
-            
-            // Only show circle viewer if we're in single circle mode
-            if (_allCircles.Count <= 1)
-            {
-                circleViewer.Visibility = Visibility.Visible;
-            }
-            // In composition mode, keep it hidden but still update for preview panel
+            circleViewer.Visibility = Visibility.Visible;
         }
         
         // Update UI elements
@@ -957,13 +886,11 @@ public partial class MainWindow : Window
         ClearConnectionLines(canvas);
 
         var circleControls = canvas.Children.OfType<MagicCircleControl>().ToList();
-        System.Diagnostics.Debug.WriteLine($"RedrawConnectionLines: Found {circleControls.Count} circle controls");
         
         foreach (var sourceControl in circleControls)
         {
             if (sourceControl.MagicCircle?.Connections == null) continue;
 
-            System.Diagnostics.Debug.WriteLine($"Circle {sourceControl.MagicCircle.Name} has {sourceControl.MagicCircle.Connections.Count} connections");
             var sourceCenter = GetCircleControlCenter(sourceControl);
 
             foreach (var connection in sourceControl.MagicCircle.Connections)
@@ -972,12 +899,7 @@ public partial class MainWindow : Window
                 if (targetControl != null)
                 {
                     var targetCenter = GetCircleControlCenter(targetControl);
-                    System.Diagnostics.Debug.WriteLine($"Drawing connection from {sourceControl.MagicCircle.Name} to {connection.Target.Name}");
                     DrawConnectionLine(canvas, sourceCenter.X, sourceCenter.Y, targetCenter.X, targetCenter.Y, connection);
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"Target control not found for connection to {connection.Target.Name}");
                 }
             }
         }
@@ -1106,9 +1028,6 @@ public partial class MainWindow : Window
         var circleViewer = FindName("CircleViewer") as MagicCircleControl;
         if (circleViewer != null && _currentCircle != null)
         {
-            // Only update circle viewer if it's visible (single circle mode)
-            // In composition mode, it should stay hidden but we still update it for preview consistency
-            
             // Method 1: Use the RefreshTrigger property to force a change
             circleViewer.RefreshTrigger = DateTime.Now;
             
@@ -1123,8 +1042,6 @@ public partial class MainWindow : Window
             circleViewer.MagicCircle = _currentCircle;
             circleViewer.InvalidateVisual();
             circleViewer.UpdateLayout();
-            
-            // Note: Don't change visibility here - it's managed by UpdateCircleVisualization
         }
     }
 

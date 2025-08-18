@@ -1,11 +1,24 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using WuLangSpellcraft.Core;
 
 namespace WuLangSpellcraft.Renderer.Controls
 {
+    /// <summary>
+    /// Event arguments for when a talisman is removed
+    /// </summary>
+    public class TalismanRemovedEventArgs : EventArgs
+    {
+        public Talisman Talisman { get; }
+        
+        public TalismanRemovedEventArgs(Talisman talisman)
+        {
+            Talisman = talisman;
+        }
+    }
     /// <summary>
     /// Custom control for rendering a talisman with elemental styling
     /// </summary>
@@ -14,6 +27,9 @@ namespace WuLangSpellcraft.Renderer.Controls
         public static readonly DependencyProperty TalismanProperty =
             DependencyProperty.Register(nameof(Talisman), typeof(Talisman), typeof(TalismanControl),
                 new PropertyMetadata(null, OnTalismanChanged));
+
+        // Event fired when the talisman should be removed
+        public event EventHandler<TalismanRemovedEventArgs>? TalismanRemoved;
 
         public Talisman? Talisman
         {
@@ -27,6 +43,13 @@ namespace WuLangSpellcraft.Renderer.Controls
             Width = 90;  // Increased from 60 to 90
             Height = 90; // Increased from 60 to 90
             ClipToBounds = false; // Allow the full talisman to be visible
+            
+            // Add click handling for removal
+            MouseLeftButtonDown += OnTalismanClicked;
+            MouseEnter += OnTalismanMouseEnter;
+            MouseLeave += OnTalismanMouseLeave;
+            Cursor = System.Windows.Input.Cursors.Hand;
+            
             RenderTalisman();
         }
 
@@ -36,6 +59,28 @@ namespace WuLangSpellcraft.Renderer.Controls
             {
                 control.RenderTalisman();
             }
+        }
+
+        private void OnTalismanClicked(object sender, MouseButtonEventArgs e)
+        {
+            if (Talisman != null)
+            {
+                // Fire the removal event
+                TalismanRemoved?.Invoke(this, new TalismanRemovedEventArgs(Talisman));
+                e.Handled = true; // Prevent event from bubbling up further
+            }
+        }
+
+        private void OnTalismanMouseEnter(object sender, MouseEventArgs e)
+        {
+            // Add visual feedback on hover
+            Opacity = 0.8;
+        }
+
+        private void OnTalismanMouseLeave(object sender, MouseEventArgs e)
+        {
+            // Remove visual feedback when not hovering
+            Opacity = 1.0;
         }
 
         private void RenderTalisman()
@@ -72,7 +117,7 @@ namespace WuLangSpellcraft.Renderer.Controls
             grid.Children.Add(stabilityIndicator);
 
             // Name tooltip
-            ToolTip = $"{Talisman.Name}\nPower: {Talisman.PowerLevel:F1}\nStability: {Talisman.Stability:F1}";
+            ToolTip = $"{Talisman.Name}\nPower: {Talisman.PowerLevel:F1}\nStability: {Talisman.Stability:F1}\n\nClick to remove";
 
             Content = grid;
         }

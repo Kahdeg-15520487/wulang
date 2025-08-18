@@ -32,11 +32,59 @@ public partial class MainWindow : Window
         InitializeTalismanLibrary();
         InitializeCompositionControls();
         InitializeCanvasPanning();
+        
+        // Wire up talisman removal event
+        var circleViewer = FindName("CircleViewer") as MagicCircleControl;
+        if (circleViewer != null)
+        {
+            circleViewer.TalismanRemoved += OnTalismanRemoved;
+        }
+        
         CreateNewCircle();
         UpdateCircleCapacityLabel(); // Initialize capacity label
         
         // Test if controls are accessible
         Title = "Wu Lang Spellcraft Renderer - Loaded Successfully";
+    }
+
+    private void OnTalismanRemoved(object? sender, TalismanRemovedEventArgs e)
+    {
+        // Find which circle contains this talisman and remove it
+        MagicCircle? targetCircle = null;
+        
+        // Check current circle first
+        if (_currentCircle != null && _currentCircle.Talismans.Contains(e.Talisman))
+        {
+            targetCircle = _currentCircle;
+        }
+        else
+        {
+            // Check all circles in composition
+            foreach (var circle in _allCircles)
+            {
+                if (circle.Talismans.Contains(e.Talisman))
+                {
+                    targetCircle = circle;
+                    break;
+                }
+            }
+        }
+        
+        if (targetCircle != null)
+        {
+            // Remove the talisman from the target circle
+            targetCircle.Talismans.Remove(e.Talisman);
+            
+            // Update all visualizations
+            UpdateCircleVisualization();
+            UpdateCircleStats();
+            UpdatePreview();
+            
+            // Update status
+            var statusText = FindName("StatusText") as TextBlock;
+            if (statusText != null)
+                statusText.Text = $"Removed {e.Talisman.PrimaryElement.Type} talisman from {targetCircle.Name}";
+        }
     }
 
     private void InitializeTalismanLibrary()
@@ -691,6 +739,7 @@ public partial class MainWindow : Window
     {
         var circleViewer = FindName("CircleViewer") as MagicCircleControl;
         var mainCanvas = FindName("MainCanvas") as Canvas;
+        var viewModeText = FindName("ViewModeText") as TextBlock;
         
         if (mainCanvas == null) return;
 
@@ -704,11 +753,15 @@ public partial class MainWindow : Window
         // If we have multiple circles (composition), render them all
         if (_allCircles.Count > 1)
         {
+            if (viewModeText != null)
+                viewModeText.Text = "View: Combination Mode";
             RenderCompositionView(mainCanvas);
         }
         // Otherwise, render single circle in the main viewer
         else if (circleViewer != null && _currentCircle != null)
         {
+            if (viewModeText != null)
+                viewModeText.Text = "View: Single Circle";
             // Force the control to update
             circleViewer.MagicCircle = null;
             circleViewer.MagicCircle = _currentCircle;
@@ -793,6 +846,9 @@ public partial class MainWindow : Window
                 SelectCircle(clickedControl.MagicCircle);
             }
         };
+
+        // Wire up talisman removal event
+        control.TalismanRemoved += OnTalismanRemoved;
 
         // Add real-time position change handler for smooth connection updates
         control.PositionChanging += (s, e) => {

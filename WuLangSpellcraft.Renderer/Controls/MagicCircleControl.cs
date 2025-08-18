@@ -38,6 +38,9 @@ namespace WuLangSpellcraft.Renderer.Controls
         
         // Event for when the circle is selected (clicked)
         public event EventHandler? Selected;
+        
+        // Event for when a talisman should be removed from this circle
+        public event EventHandler<TalismanRemovedEventArgs>? TalismanRemoved;
 
         public MagicCircle? MagicCircle
         {
@@ -556,6 +559,9 @@ namespace WuLangSpellcraft.Renderer.Controls
                     Height = 90
                 };
 
+                // Wire up the removal event
+                talismanControl.TalismanRemoved += OnTalismanRemoved;
+
                 // Center the larger talisman control at the calculated position
                 Canvas.SetLeft(talismanControl, x - 45); // Half of the 90px width
                 Canvas.SetTop(talismanControl, y - 45);  // Half of the 90px height
@@ -748,6 +754,12 @@ namespace WuLangSpellcraft.Renderer.Controls
                 
                 _ => Brushes.Gray
             };
+        }
+
+        private void OnTalismanRemoved(object? sender, TalismanRemovedEventArgs e)
+        {
+            // Bubble up the event to any listeners (like MainWindow)
+            TalismanRemoved?.Invoke(this, e);
         }
 
         #region Mouse Event Handling

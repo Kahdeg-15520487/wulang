@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.IO;
 using System.Threading.Tasks;
+using System.Text;
+using System.Globalization;
 
 namespace WuLangSpellcraft.Core.Serialization
 {
@@ -96,6 +98,118 @@ namespace WuLangSpellcraft.Core.Serialization
             var json = await File.ReadAllTextAsync(filePath);
             return DeserializeSpell(json);
         }
+
+        #region Circle Notation Format (CNF) Support
+
+        /// <summary>
+        /// Serializes a magic circle to Circle Notation Format (CNF)
+        /// </summary>
+        public static string SerializeCircleToCnf(MagicCircle circle, CnfOptions? options = null)
+        {
+            options ??= new CnfOptions();
+            
+            var result = new StringBuilder();
+            
+            // Start with circle definition: C<radius>
+            result.Append($"C{circle.Radius}");
+            
+            // Add space before elements if we have any
+            if (circle.Talismans.Any())
+            {
+                result.Append(" ");
+            }
+            
+            // Serialize each talisman
+            for (int i = 0; i < circle.Talismans.Count; i++)
+            {
+                var talisman = circle.Talismans[i];
+                var elementStr = SerializeTalismanToCnf(talisman, options);
+                result.Append(elementStr);
+                
+                // Add separator between elements (except for last one)
+                if (i < circle.Talismans.Count - 1 && !options.UseCompactFormat)
+                {
+                    result.Append(" ");
+                }
+            }
+            
+            return result.ToString();
+        }
+
+        /// <summary>
+        /// Deserializes a magic circle from Circle Notation Format (CNF)
+        /// </summary>
+        public static MagicCircle DeserializeCircleFromCnf(string cnf)
+        {
+            var parser = new CnfParser();
+            return parser.ParseCircle(cnf);
+        }
+
+        /// <summary>
+        /// Saves a magic circle to file in CNF format
+        /// </summary>
+        public static async Task SaveCircleToCnfFileAsync(MagicCircle circle, string filePath, CnfOptions? options = null)
+        {
+            var cnf = SerializeCircleToCnf(circle, options);
+            await File.WriteAllTextAsync(filePath, cnf);
+        }
+
+        /// <summary>
+        /// Loads a magic circle from CNF file
+        /// </summary>
+        public static async Task<MagicCircle> LoadCircleFromCnfFileAsync(string filePath)
+        {
+            var cnf = await File.ReadAllTextAsync(filePath);
+            return DeserializeCircleFromCnf(cnf);
+        }
+
+        private static string SerializeTalismanToCnf(Talisman talisman, CnfOptions options)
+        {
+            var result = new StringBuilder();
+            
+            // Get element symbol
+            var symbol = ElementSymbols.GetSymbol(talisman.PrimaryElement.Type);
+            result.Append(symbol);
+            
+            // Add power level if different from 1.0 and option is enabled
+            if (options.IncludePowerLevels && Math.Abs(talisman.PrimaryElement.Energy - 1.0) > 0.001)
+            {
+                result.Append(talisman.PrimaryElement.Energy.ToString("0.##", CultureInfo.InvariantCulture));
+            }
+            
+            // Add talisman ID if option is enabled and talisman has a meaningful name
+            if (options.IncludeTalismanIds && !string.IsNullOrEmpty(talisman.Name))
+            {
+                // Use talisman name as ID if it looks like a valid CNF ID
+                var id = options.UseReadableIds && IsValidCnfId(talisman.Name) ? 
+                    talisman.Name : 
+                    talisman.Id.ToString("N")[..8];
+                result.Append($":{id}");
+            }
+            
+            return result.ToString();
+        }
+
+        private static string ConvertGuidToReadableId(Guid guid, string name)
+        {
+            // Try to extract a readable ID from the talisman name
+            if (!string.IsNullOrEmpty(name) && IsValidCnfId(name))
+            {
+                return name.ToLowerInvariant();
+            }
+            
+            // Fall back to shortened GUID
+            return guid.ToString("N")[..8];
+        }
+
+        private static bool IsValidCnfId(string id)
+        {
+            return !string.IsNullOrWhiteSpace(id) && 
+                   id.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-') &&
+                   id.Length <= 16;
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -387,6 +501,357 @@ namespace WuLangSpellcraft.Core.Serialization
         public override void Write(Utf8JsonWriter writer, MagicCircle value, JsonSerializerOptions options)
         {
             JsonSerializer.Serialize(writer, new MagicCircleData(value), options);
+        }
+    }
+
+    #endregion
+
+    #region Circle Notation Format (CNF) Classes
+
+    /// <summary>
+    /// Options for Circle Notation Format serialization
+    /// </summary>
+    public class CnfOptions
+    {
+        // Formatting options
+        public bool IncludePowerLevels { get; set; } = true;
+        public bool IncludePositions { get; set; } = false;
+        public bool IncludeElementStates { get; set; } = false;
+        public bool IncludeTalismanIds { get; set; } = false;
+        public bool UseCompactFormat { get; set; } = false;
+        public bool UseReadableIds { get; set; } = true;
+        
+        // Layout options
+        public bool MultiLine { get; set; } = false;
+        public string IndentString { get; set; } = "  ";
+        public int MaxLineLength { get; set; } = 80;
+        
+        // Content options
+        public bool IncludeComments { get; set; } = false;
+        public bool ValidateOnSerialize { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Element symbol mappings for CNF
+    /// </summary>
+    public static class ElementSymbols
+    {
+        private static readonly Dictionary<ElementType, char> _typeToSymbol = new()
+        {
+            { ElementType.Fire, 'F' },
+            { ElementType.Water, 'W' },
+            { ElementType.Earth, 'E' },
+            { ElementType.Metal, 'M' },
+            { ElementType.Wood, 'O' },  // 'O' for wOod to avoid conflict with Water
+            { ElementType.Lightning, 'L' },
+            { ElementType.Wind, 'N' },  // wiNd
+            { ElementType.Light, 'I' }, // lIght
+            { ElementType.Dark, 'D' },
+            { ElementType.Forge, 'G' }, // forGe
+            { ElementType.Chaos, 'C' },
+            { ElementType.Void, 'V' }
+        };
+
+        private static readonly Dictionary<char, ElementType> _symbolToType = 
+            _typeToSymbol.ToDictionary(kv => kv.Value, kv => kv.Key);
+
+        public static char GetSymbol(ElementType type)
+        {
+            return _typeToSymbol.TryGetValue(type, out var symbol) ? symbol : '?';
+        }
+
+        public static ElementType GetElementType(char symbol)
+        {
+            return _symbolToType.TryGetValue(symbol, out var type) ? type : ElementType.Fire;
+        }
+
+        public static bool IsValidSymbol(char symbol)
+        {
+            return _symbolToType.ContainsKey(symbol);
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown when CNF parsing fails
+    /// </summary>
+    public class CnfException : Exception
+    {
+        public int Position { get; }
+        
+        public CnfException(string message, int position = -1) : base(message)
+        {
+            Position = position;
+        }
+        
+        public CnfException(string message, int position, Exception innerException) 
+            : base(message, innerException)
+        {
+            Position = position;
+        }
+    }
+
+    /// <summary>
+    /// Token types for CNF lexical analysis
+    /// </summary>
+    public enum CnfTokenType
+    {
+        Identifier,     // Element symbols (F, W, E, etc.), talisman IDs
+        Number,         // Numbers for positions, strengths, power levels
+        Colon,          // :
+        Semicolon,      // ;
+        LeftParen,      // (
+        RightParen,     // )
+        Comma,          // ,
+        Equals,         // =
+        EOF
+    }
+
+    /// <summary>
+    /// Token for CNF lexical analysis
+    /// </summary>
+    public record CnfToken(CnfTokenType Type, string Value, int Position);
+
+    /// <summary>
+    /// Lexical analyzer for CNF
+    /// </summary>
+    public class CnfLexer
+    {
+        public IEnumerable<CnfToken> Tokenize(string input)
+        {
+            var position = 0;
+            
+            while (position < input.Length)
+            {
+                var current = input[position];
+                
+                if (char.IsWhiteSpace(current))
+                {
+                    position++;
+                    continue;
+                }
+                
+                switch (current)
+                {
+                    case ':':
+                        yield return new CnfToken(CnfTokenType.Colon, ":", position++);
+                        break;
+                    case ';':
+                        yield return new CnfToken(CnfTokenType.Semicolon, ";", position++);
+                        break;
+                    case '(':
+                        yield return new CnfToken(CnfTokenType.LeftParen, "(", position++);
+                        break;
+                    case ')':
+                        yield return new CnfToken(CnfTokenType.RightParen, ")", position++);
+                        break;
+                    case ',':
+                        yield return new CnfToken(CnfTokenType.Comma, ",", position++);
+                        break;
+                    case '=':
+                        yield return new CnfToken(CnfTokenType.Equals, "=", position++);
+                        break;
+                    default:
+                        if (char.IsDigit(current) || current == '.')
+                        {
+                            var (number, newPos) = ReadNumber(input, position);
+                            yield return new CnfToken(CnfTokenType.Number, number, position);
+                            position = newPos;
+                        }
+                        else if (char.IsLetter(current) || current == '_')
+                        {
+                            var (identifier, newPos) = ReadIdentifier(input, position);
+                            yield return new CnfToken(CnfTokenType.Identifier, identifier, position);
+                            position = newPos;
+                        }
+                        else
+                        {
+                            throw new CnfException($"Unexpected character '{current}' at position {position}", position);
+                        }
+                        break;
+                }
+            }
+            
+            yield return new CnfToken(CnfTokenType.EOF, "", position);
+        }
+
+        private static (string number, int newPosition) ReadNumber(string input, int startPos)
+        {
+            var endPos = startPos;
+            var hasDecimal = false;
+            
+            while (endPos < input.Length)
+            {
+                var c = input[endPos];
+                if (char.IsDigit(c))
+                {
+                    endPos++;
+                }
+                else if (c == '.' && !hasDecimal)
+                {
+                    hasDecimal = true;
+                    endPos++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            return (input[startPos..endPos], endPos);
+        }
+
+        private static (string identifier, int newPosition) ReadIdentifier(string input, int startPos)
+        {
+            var endPos = startPos;
+            
+            while (endPos < input.Length)
+            {
+                var c = input[endPos];
+                if (char.IsLetterOrDigit(c) || c == '_' || c == '-')
+                {
+                    endPos++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            return (input[startPos..endPos], endPos);
+        }
+    }
+
+    /// <summary>
+    /// Parser for Circle Notation Format
+    /// </summary>
+    public class CnfParser
+    {
+        private List<CnfToken> _tokens = new();
+        private int _currentToken = 0;
+
+        public MagicCircle ParseCircle(string cnf)
+        {
+            var lexer = new CnfLexer();
+            _tokens = lexer.Tokenize(cnf).ToList();
+            _currentToken = 0;
+
+            return ParseCircleDefinition();
+        }
+
+        private MagicCircle ParseCircleDefinition()
+        {
+            // Expect: C<radius> <elements>
+            var token = Current();
+            
+            if (token.Type != CnfTokenType.Identifier || !token.Value.StartsWith("C"))
+            {
+                throw new CnfException($"Expected circle definition 'C<radius>' at position {token.Position}", token.Position);
+            }
+
+            // Extract radius
+            var radiusStr = token.Value[1..]; // Remove 'C' prefix
+            if (!double.TryParse(radiusStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius))
+            {
+                throw new CnfException($"Invalid radius '{radiusStr}' at position {token.Position}", token.Position);
+            }
+
+            Advance(); // Move past circle definition
+
+            // Create circle
+            var circle = new MagicCircle(Guid.NewGuid(), $"Circle R{radius}", radius);
+
+            // Parse elements
+            while (Current().Type != CnfTokenType.EOF)
+            {
+                var talisman = ParseTalisman();
+                if (talisman != null)
+                {
+                    // Calculate position angle based on talisman index
+                    var angle = (2 * Math.PI * circle.Talismans.Count) / 8; // Assume 8 positions for now
+                    circle.AddTalisman(talisman, angle);
+                }
+            }
+
+            return circle;
+        }
+
+        private Talisman? ParseTalisman()
+        {
+            var token = Current();
+            
+            if (token.Type != CnfTokenType.Identifier)
+            {
+                return null;
+            }
+
+            // First character should be element symbol
+            var elementSymbol = token.Value[0];
+            if (!ElementSymbols.IsValidSymbol(elementSymbol))
+            {
+                throw new CnfException($"Invalid element symbol '{elementSymbol}' at position {token.Position}", token.Position);
+            }
+
+            var elementType = ElementSymbols.GetElementType(elementSymbol);
+            var powerLevel = 1.0;
+            string? talismanId = null;
+
+            // Check if there's a power level in the same token
+            if (token.Value.Length > 1)
+            {
+                var powerStr = token.Value[1..];
+                if (double.TryParse(powerStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var power))
+                {
+                    powerLevel = power;
+                }
+            }
+
+            Advance(); // Move past element token
+
+            // Check for power level as separate number
+            if (Current().Type == CnfTokenType.Number)
+            {
+                if (double.TryParse(Current().Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var separatePower))
+                {
+                    powerLevel = separatePower;
+                }
+                Advance();
+            }
+
+            // Check for talisman ID
+            if (Current().Type == CnfTokenType.Colon)
+            {
+                Advance(); // Skip colon
+                
+                if (Current().Type == CnfTokenType.Identifier)
+                {
+                    talismanId = Current().Value;
+                    Advance();
+                }
+                else
+                {
+                    throw new CnfException($"Expected talisman ID after ':' at position {Current().Position}", Current().Position);
+                }
+            }
+
+            // Create element and talisman
+            var element = new Element(elementType, powerLevel);
+            var talismanName = talismanId ?? $"Talisman {elementType}";
+            var talisman = new Talisman(element, talismanName);
+
+            return talisman;
+        }
+
+        private CnfToken Current()
+        {
+            return _currentToken < _tokens.Count ? _tokens[_currentToken] : new CnfToken(CnfTokenType.EOF, "", -1);
+        }
+
+        private void Advance()
+        {
+            if (_currentToken < _tokens.Count)
+            {
+                _currentToken++;
+            }
         }
     }
 

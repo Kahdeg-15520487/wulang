@@ -31,6 +31,8 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             try
             {
                 DemonstrateSpellSerialization(circles);
+                Console.WriteLine();
+                DemonstrateCnfSerialization(circles);
             }
             catch (Exception ex)
             {
@@ -121,6 +123,102 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 Console.WriteLine("   ❌ Data integrity check failed!");
             }
             Console.ResetColor();
+        }
+
+        private static void DemonstrateCnfSerialization(MagicCircle[] circles)
+        {
+            Console.WriteLine("🌀 CIRCLE NOTATION FORMAT (CNF) DEMONSTRATION");
+            Console.WriteLine(new string('─', 50));
+            Console.WriteLine();
+            
+            foreach (var circle in circles)
+            {
+                Console.WriteLine($"📍 Circle: {circle.Name}");
+                Console.WriteLine($"   Radius: {circle.Radius}, Talismans: {circle.Talismans.Count}");
+                
+                // Test basic CNF serialization
+                var basicCnf = SpellSerializer.SerializeCircleToCnf(circle);
+                Console.WriteLine($"   Basic CNF: {basicCnf}");
+                
+                // Test CNF with power levels
+                var detailedOptions = new CnfOptions 
+                { 
+                    IncludePowerLevels = true,
+                    IncludeTalismanIds = false 
+                };
+                var detailedCnf = SpellSerializer.SerializeCircleToCnf(circle, detailedOptions);
+                Console.WriteLine($"   With Power: {detailedCnf}");
+                
+                // Test CNF with IDs
+                var idOptions = new CnfOptions 
+                { 
+                    IncludePowerLevels = true,
+                    IncludeTalismanIds = true,
+                    UseReadableIds = true
+                };
+                var idCnf = SpellSerializer.SerializeCircleToCnf(circle, idOptions);
+                Console.WriteLine($"   With IDs: {idCnf}");
+                
+                // Test round-trip conversion
+                try
+                {
+                    var parsedCircle = SpellSerializer.DeserializeCircleFromCnf(basicCnf);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"   ✅ CNF Round-trip: Success (R:{parsedCircle.Radius}, T:{parsedCircle.Talismans.Count})");
+                    Console.ResetColor();
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"   ❌ CNF Round-trip: {ex.Message}");
+                    Console.ResetColor();
+                }
+                
+                Console.WriteLine();
+            }
+            
+            // Demonstrate parsing various CNF formats
+            DemonstrateCnfParsing();
+        }
+
+        private static void DemonstrateCnfParsing()
+        {
+            Console.WriteLine("📖 CNF PARSING EXAMPLES");
+            Console.WriteLine(new string('─', 30));
+            
+            var testCases = new[]
+            {
+                "C3 F W E",                    // Basic circle
+                "C5 F2.5 W1.2 L0.8",          // With power levels
+                "C4 F:core W:shield E:ground", // With IDs
+                "C2.5 F2:flame W1.5:water",   // Combined power and IDs
+                "C6 FWEMO",                    // Compact format
+                "C1 V"                        // Single void element
+            };
+            
+            foreach (var cnf in testCases)
+            {
+                try
+                {
+                    var circle = SpellSerializer.DeserializeCircleFromCnf(cnf);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"   ✅ '{cnf}' -> R:{circle.Radius}, {circle.Talismans.Count} talismans");
+                    
+                    // Show details of parsed talismans
+                    foreach (var talisman in circle.Talismans)
+                    {
+                        var symbol = ElementSymbols.GetSymbol(talisman.PrimaryElement.Type);
+                        Console.WriteLine($"      {symbol} ({talisman.PrimaryElement.Type}): Power {talisman.PrimaryElement.Energy:F1}");
+                    }
+                    Console.ResetColor();
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"   ❌ '{cnf}' -> Error: {ex.Message}");
+                    Console.ResetColor();
+                }
+            }
         }
     }
 }

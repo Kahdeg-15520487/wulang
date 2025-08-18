@@ -70,10 +70,9 @@ public static class CircleNotationSerializer
     public static string SerializeConfiguration(SpellConfiguration config, NotationOptions options);
     
     // Internal serialization methods
-    private static string SerializeElements(IEnumerable<Element> elements, Dictionary<Guid, string> idMap);
-    private static string SerializeConnections(MagicCircle circle, Dictionary<MagicCircle, int> circleIds);
+    private static string SerializeElements(IEnumerable<Element> elements);
+    private static string SerializeConnections(MagicCircle circle);
     private static string SerializePosition(double x, double y, double z);
-    private static Dictionary<Guid, string> CreateIdMap(IEnumerable<MagicCircle> circles); // Convert GUIDs to readable strings
 }
 ```
 
@@ -86,13 +85,8 @@ public class NotationOptions
     public bool IncludePowerLevels { get; set; } = true;
     public bool IncludePositions { get; set; } = true;
     public bool IncludeElementStates { get; set; } = true;
-    public bool IncludeTalismanIds { get; set; } = false;    // Only include when explicitly named
+    public bool IncludeTalismanIds { get; set; } = false;    // Only include when explicitly set
     public bool UseCompactFormat { get; set; } = false;
-    
-    // ID generation options
-    public string IdPrefix { get; set; } = "t";              // Auto-generated ID prefix (t1, t2, t3...)
-    public bool PreserveOriginalIds { get; set; } = false;   // Try to preserve original GUID-based IDs
-    public bool UseReadableIds { get; set; } = true;         // Convert GUIDs to readable strings
     
     // Layout options
     public bool MultiLine { get; set; } = false;
@@ -131,71 +125,28 @@ public class ValidationResult
 }
 ```
 
-## ID Management Strategy
-
-### String-Based Talisman IDs
-
-Instead of requiring GUIDs in the notation, CNF uses human-friendly string IDs:
-
-```csharp
-public class TalismanIdManager
-{
-    private readonly Dictionary<string, Guid> _stringToGuid = new();
-    private readonly Dictionary<Guid, string> _guidToString = new();
-    private int _autoIdCounter = 1;
-    
-    public Guid GetOrCreateGuid(string? stringId = null)
-    {
-        // If no string ID provided, auto-generate one
-        if (string.IsNullOrEmpty(stringId))
-        {
-            stringId = $"t{_autoIdCounter++}";
-        }
-        
-        // Return existing GUID if we've seen this string ID before
-        if (_stringToGuid.TryGetValue(stringId, out var existingGuid))
-        {
-            return existingGuid;
-        }
-        
-        // Create new GUID and remember the mapping
-        var newGuid = Guid.NewGuid();
-        _stringToGuid[stringId] = newGuid;
-        _guidToString[newGuid] = stringId;
-        return newGuid;
-    }
-    
-    public string GetStringId(Guid guid)
-    {
-        return _guidToString.TryGetValue(guid, out var stringId) ? stringId : guid.ToString("N")[..8];
-    }
-}
-```
-
-### Parsing Strategy
+## Parsing Strategy
 
 ```csharp
 public static MagicCircle ParseCircle(string notation)
 {
-    var idManager = new TalismanIdManager();
     var elements = ParseElements(notation); // Returns list of (ElementType, PowerLevel, State, StringId?)
     
     var circle = new MagicCircle(Guid.NewGuid(), "Parsed Circle", radius);
     
     foreach (var (elementType, power, state, stringId) in elements)
     {
-        // Create TalismanData with proper GUID but remember string mapping
-        var guid = idManager.GetOrCreateGuid(stringId);
+        // Create TalismanData with string ID (or auto-generate if null)
         var talismanData = new TalismanData
         {
-            Id = guid,
-            Name = stringId ?? $"Talisman {elementType}",
-            PrimaryElement = new ElementData { Type = elementType, Energy = power },
-            // ... other properties
+            Id = stringId ?? Guid.NewGuid().ToString("N")[..8],  // Use provided ID or generate short one
+            ElementType = elementType,
+            PowerLevel = power,
+            State = state
         };
         
-        var talisman = talismanData.ToTalisman();
-        circle.AddTalisman(talisman, angle);
+        var talisman = new Talisman(talismanData);
+        circle.AddTalisman(talisman, position);
     }
     
     return circle;
@@ -208,39 +159,16 @@ public static MagicCircle ParseCircle(string notation)
 public static string SerializeCircle(MagicCircle circle, NotationOptions? options = null)
 {
     options ??= NotationDefaults.StandardOptions;
-    var idMap = new Dictionary<Guid, string>();
-    
-    // Create readable string IDs for talismans
-    for (int i = 0; i < circle.Talismans.Count; i++)
-    {
-        var talisman = circle.Talismans[i];
-        
-        if (options.UseReadableIds)
-        {
-            // Try to use talisman name if it looks like an ID, otherwise auto-generate
-            var name = talisman.Name;
-            if (IsValidId(name) && !idMap.ContainsValue(name))
-            {
-                idMap[talisman.Id] = name;
-            }
-            else
-            {
-                idMap[talisman.Id] = $"{options.IdPrefix}{i + 1}";
-            }
-        }
-        else
-        {
-            // Use shortened GUID
-            idMap[talisman.Id] = talisman.Id.ToString("N")[..8];
-        }
-    }
     
     // Build CNF string with optional IDs
     var elements = circle.Talismans.Select(t => 
     {
         var elementStr = ElementSymbols.GetSymbol(t.PrimaryElement.Type);
         if (t.PrimaryElement.Energy != 1.0) elementStr += t.PrimaryElement.Energy;
-        if (options.IncludeTalismanIds) elementStr += $":{idMap[t.Id]}";
+        if (options.IncludeTalismanIds && !string.IsNullOrEmpty(t.Id)) 
+        {
+            elementStr += $":{t.Id}";
+        }
         return elementStr;
     });
     

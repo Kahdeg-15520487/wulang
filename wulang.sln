@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WuLangSpellcraft", "WuLangS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WuLangSpellcraft.Demo", "WuLangSpellcraft.Demo\WuLangSpellcraft.Demo.csproj", "{5403BBF5-D8BD-4988-A5C0-36BB69773CC9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WuLangSpellcraft.Renderer", "WuLangSpellcraft.Renderer\WuLangSpellcraft.Renderer.csproj", "{A226DA64-4C82-4F38-B331-4E536E7F5D1E}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,18 +41,6 @@ Global
 		{5403BBF5-D8BD-4988-A5C0-36BB69773CC9}.Release|x64.Build.0 = Release|Any CPU
 		{5403BBF5-D8BD-4988-A5C0-36BB69773CC9}.Release|x86.ActiveCfg = Release|Any CPU
 		{5403BBF5-D8BD-4988-A5C0-36BB69773CC9}.Release|x86.Build.0 = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|x64.Build.0 = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Debug|x86.Build.0 = Debug|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|x64.ActiveCfg = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|x64.Build.0 = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|x86.ActiveCfg = Release|Any CPU
-		{A226DA64-4C82-4F38-B331-4E536E7F5D1E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

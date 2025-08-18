@@ -1,167 +1,129 @@
-# Wu Xing Spellcraft
+# WuLang Spellcraft
 
-A magical programming language inspired by Chinese Wu Xing (Five Elements) philosophy, designed for creating visual programming experiences where code becomes spellcrafting.
+A comprehensive magical programming system inspired by Chinese Wu Xing (Five Elements) philosophy, designed for creating complex spell compositions through elemental interactions.
 
-## Project Structure
+## 🌟 Overview
 
-### 🏛️ **WuLangSpellcraft** (Core Library)
+WuLang Spellcraft implements a complete magical system featuring:
+- **12 Elemental Types** - 5 base Wu Xing elements + 7 derived combinations
+- **Advanced Talisman System** - Individual spell components with stability mechanics
+- **3D Magic Circle Compositions** - Nested, stacked, and networked arrangements
+- **Artifact Creation System** - Permanent magical items with diverse functions
+- **Comprehensive Spell Effects** - Physics-based world interactions
+
+## 🏗️ Project Structure
+
+### **WuLangSpellcraft** (Core Library)
 The main C# library containing all core functionality:
-- Five Elements (Wu Xing) system with authentic Chinese relationships
-- Talisman creation and elemental interactions
-- Magic circle composition with sacred geometry
-- 3D spell architecture and connections
+- Elemental system with authentic Wu Xing relationships
+- Talisman creation and stability mechanics
+- Magic circle composition with 3D support
+- Artifact creation and spell-imbued items
 - Complete JSON serialization system
-- Extensible framework for visual programming applications
 
-**Usage:**
-```bash
-dotnet add package WuLangSpellcraft
-```
-
-### 🎮 **WuLangSpellcraft.Demo** (Console Demo)
+### **WuLangSpellcraft.Demo** (Console Demo)
 Interactive demonstration showcasing library capabilities:
-- Complete walkthrough of Wu Xing concepts
-- Real-time spell generation and effects
-- Serialization system demonstration
-- Educational console output with Chinese characters
+- Complete system walkthrough
+- Composition system demos
+- Stability and casting mechanics
+- Interactive examples
 
-**Run Demo:**
-```bash
-cd WuLangSpellcraft.Demo
-dotnet run
-```
+## ✨ Key Features
 
-## Philosophy & Design
+### **Elemental System**
+- **Base Elements**: Water, Fire, Earth, Metal, Wood (Wu Xing)
+- **Derived Elements**: Lightning, Wind, Light, Dark, Forge, Chaos, Void
+- **Authentic Relationships**: Traditional generative and destructive cycles
+- **Complex Interactions**: Multi-element combinations and derived creations
 
-### Wu Xing (Five Elements) 五行
-Based on authentic Chinese elemental philosophy:
+### **Talisman System**
+- **Stability Mechanics**: 6-tier stability system with casting consequences
+- **Power Calculation**: Dynamic power based on elemental harmony
+- **3D Positioning**: Full spatial awareness for circle arrangements
+- **Casting Outcomes**: 7 different results from perfect success to destruction
 
-- **Water (水)** - Flow, adaptation, yielding strength
-- **Wood (木)** - Growth, expansion, flexibility  
-- **Fire (火)** - Transformation, energy, passion
-- **Earth (土)** - Stability, grounding, nourishment
-- **Metal (金)** - Structure, precision, clarity
+### **Magic Circle Compositions**
+- **Multiple Types**: Simple, Stacked, Nested, Network, Unified
+- **Connection Systems**: Direct, Resonance, Flow, Trigger connections
+- **Complexity Management**: Dynamic complexity scoring and casting time
+- **3D Architecture**: Layer-based stacking with spatial constraints
 
-### Generative Cycle (生)
-Elements that strengthen each other:
-Water → Wood → Fire → Earth → Metal → Water
+### **Artifact System**
+- **11 Elemental Artifacts**: Forge-based creations for each element
+- **Spell-Imbued Artifacts**: Store complete spell patterns
+- **Durability & Energy**: Usage tracking with repair mechanics
+- **Rarity System**: Common to Legendary progression
+## � Quick Start
 
-### Destructive Cycle (克)
-Elements that constrain each other:
-Water ⚔ Fire ⚔ Metal ⚔ Wood ⚔ Earth ⚔ Water
-
-## Key Features
-
-### ✨ **Visual Programming Foundation**
-- **Talisman System** - Individual spell components with elemental properties
-- **Magic Circles** - Sacred geometry arrangements for complex operations
-- **3D Architecture** - Layered spell construction with resonance connections
-- **Balance Mechanics** - Harmony vs. conflict optimization puzzles
-
-### 💾 **Complete Persistence**
-- **JSON Serialization** - Human-readable spell configurations
-- **Metadata Support** - Author, version, difficulty tracking
-- **Spell Libraries** - Save, load, and share complex architectures
-- **Version Control** - Git-friendly format for collaboration
-
-### 🎯 **Educational Value**
-- **Cultural Authenticity** - Genuine Chinese philosophical concepts
-- **Programming Concepts** - Object composition, state management, serialization
-- **Game Design** - Resource management, balance mechanics, emergent complexity
-
-## Technical Architecture
-
-### Core Classes
-- `Element` - Base elemental forces with Wu Xing relationships
-- `Talisman` - Individual spell components with positioning
-- `MagicCircle` - Circular arrangements with geometric constraints
-- `SpellEffect` - Generated effects for world engine integration
-- `SpellConfiguration` - Complete spell definitions with metadata
-
-### Serialization System
-- `SpellSerializer` - JSON persistence with custom converters
-- Full round-trip accuracy for complex spell architectures
-- Async file operations for non-blocking I/O
-- Extensible format for future enhancements
-
-## Getting Started
-
-### 1. Clone Repository
+### Installation
 ```bash
 git clone <repository-url>
 cd wulang
-```
-
-### 2. Build Solution
-```bash
 dotnet build
 ```
 
-### 3. Run Demo
+### Run Demo
 ```bash
 cd WuLangSpellcraft.Demo
 dotnet run
 ```
 
-### 4. Use Library
+### Basic Usage
 ```csharp
 using WuLangSpellcraft.Core;
 
+// Create elements
 var water = new Element(ElementType.Water, 1.5);
 var fire = new Element(ElementType.Fire, 2.0);
+
+// Create talisman
 var waterTalisman = new Talisman(water, "Azure Flow");
 
+// Create magic circle
 var circle = new MagicCircle("Test Circle");
 circle.AddTalisman(waterTalisman);
+
+// Generate spell effect
 var effect = circle.CalculateSpellEffect();
 ```
 
-## Development Roadmap
+## 📚 Documentation
 
-### ✅ **Phase 1: Core Foundation** (Complete)
-- Wu Xing elemental system
-- Talisman and magic circle mechanics
-- 3D architecture support
-- JSON serialization system
+- **[Element System](docs/api/elements.md)** - Complete elemental reference
+- **[Talisman Guide](docs/api/talismans.md)** - Talisman creation and mechanics
+- **[Magic Circles](docs/api/magic-circles.md)** - Circle composition system
+- **[Artifacts](docs/api/artifacts.md)** - Artifact creation and usage
+- **[Composition Guide](docs/guides/composition-guide.md)** - Advanced composition techniques
+- **[Stability System](docs/guides/stability-guide.md)** - Understanding casting mechanics
 
-### 🔄 **Phase 2: Visual Editor** (Next)
-- Drag-and-drop talisman designer
-- Real-time interaction feedback
-- Sacred geometry visualization
-- Spell effect preview
+## 🔬 System Design
 
-### 🔮 **Phase 3: World Engine Integration**
-- Physics-based spell effects
-- Weapon and object enhancement
-- Environmental interactions
-- Real-time rendering
+### Philosophical Foundation
+Based on authentic Chinese Wu Xing philosophy with modern programming concepts:
+- **Traditional Cycles**: Maintains authentic generative/destructive relationships
+- **Modern Extensions**: Logical derived elements from base combinations
+- **Balance Mechanics**: Harmony vs. conflict optimization
 
-### 🌟 **Phase 4: Advanced Features**
-- Community spell sharing
-- Procedural generation
-- Performance optimization puzzles
-- Educational curriculum
+### Technical Architecture
+- **Modular Design**: Extensible core systems
+- **3D Spatial Support**: Full three-dimensional positioning
+- **Serialization**: Complete persistence with JSON format
+- **Performance**: Optimized for complex compositions
 
-## Contributing
+## 🤝 Contributing
 
-We welcome contributions that respect the philosophical foundations while expanding technical capabilities. Please ensure new features maintain the balance between authenticity and innovation.
+We welcome contributions that respect the philosophical foundations while expanding technical capabilities.
 
 ### Development Guidelines
 - Preserve Wu Xing authenticity
-- Maintain clean, documented code
-- Include comprehensive tests
-- Follow established patterns
+- Maintain comprehensive documentation
+- Include thorough testing
+- Follow established architectural patterns
 
-## License
+## 📄 License
 
 MIT License - See LICENSE file for details.
 
-## Acknowledgments
-
-- Traditional Chinese Wu Xing philosophy
-- Modern visual programming paradigms
-- The open-source C# community
-
 ---
 
-*"In the harmony of the five elements lies the power to transform code into magic."* ✨
+*"Through the harmony of elements, code becomes magic."* ✨

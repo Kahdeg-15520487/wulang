@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace WuLangSpellcraft.Core
 {
@@ -24,9 +25,16 @@ namespace WuLangSpellcraft.Core
         NullAnchor,         // Forge + Void
         
         // Spell-Imbued Artifacts
-        SpellWand,          // Contains a complete spell pattern
-        SpellOrb,           // Alternative spell storage form
-        SpellScroll,        // Temporary spell storage
+        SpellWand,          // Contains a complete spell pattern (single circle)
+        SpellOrb,           // Alternative spell storage form (single circle)
+        SpellScroll,        // Temporary spell storage (single circle)
+        
+        // Formation-Imbued Artifacts (NEW - implements proper hierarchy)
+        FormationTablet,    // Contains a complete formation (multiple circles)
+        FormationStaff,     // Powerful formation artifact
+        FormationOrb,       // Spherical formation storage
+        FormationRing,      // Wearable formation artifact
+        FormationAmulet,    // Protective formation artifact
         
         // Composite Artifacts
         ArtifactSet,        // Multiple artifacts working together
@@ -281,6 +289,254 @@ namespace WuLangSpellcraft.Core
                 BarrierStrength = StoredEffect.BarrierStrength,
                 EnhancementMultiplier = StoredEffect.EnhancementMultiplier
             };
+        }
+    }
+
+    /// <summary>
+    /// Artifacts that contain complete formations with multiple interconnected circles
+    /// This properly implements the Artifact -> Formation -> Circles -> Talismans hierarchy
+    /// </summary>
+    public class FormationArtifact : Artifact
+    {
+        public List<Formation> EngravedFormations { get; }
+        public Formation? ActiveFormation { get; set; }
+        public double FormationEfficiency { get; set; }
+        public int MaxFormations { get; set; }
+        
+        public FormationArtifact(ArtifactType type, string name, int maxFormations = 1) 
+            : base(type, ElementType.Void, name) // Will be updated based on formations
+        {
+            EngravedFormations = new List<Formation>();
+            FormationEfficiency = 0.85; // Formations lose some efficiency when stored
+            MaxFormations = maxFormations;
+            
+            // Set artifact properties
+            Description = $"Can store up to {maxFormations} formation(s)";
+            EnergyCapacity = maxFormations * 200; // More capacity for complex formations
+            CurrentEnergy = EnergyCapacity;
+        }
+
+        /// <summary>
+        /// Engraves a formation onto this artifact
+        /// </summary>
+        public bool EngraveFormation(Formation formation)
+        {
+            if (EngravedFormations.Count >= MaxFormations)
+                return false;
+
+            // Clone the formation to avoid modifying the original
+            var clonedFormation = formation.Clone();
+            clonedFormation.Name = $"{formation.Name} (Engraved)";
+            
+            EngravedFormations.Add(clonedFormation);
+            
+            // Update artifact properties based on engraved formations
+            UpdateArtifactProperties();
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a formation from this artifact
+        /// </summary>
+        public bool RemoveFormation(string formationId)
+        {
+            var formation = EngravedFormations.FirstOrDefault(f => f.Id == formationId);
+            if (formation == null) return false;
+
+            EngravedFormations.Remove(formation);
+            
+            // Clear active formation if it was removed
+            if (ActiveFormation?.Id == formationId)
+                ActiveFormation = null;
+                
+            UpdateArtifactProperties();
+            return true;
+        }
+
+        /// <summary>
+        /// Sets the active formation for casting
+        /// </summary>
+        public bool SetActiveFormation(string formationId)
+        {
+            var formation = EngravedFormations.FirstOrDefault(f => f.Id == formationId);
+            if (formation == null) return false;
+
+            ActiveFormation = formation;
+            return true;
+        }
+
+        /// <summary>
+        /// Casts the active formation if enough energy is available
+        /// </summary>
+        public FormationCastResult? CastActiveFormation(double energyInput = 0)
+        {
+            if (ActiveFormation == null)
+                return null;
+
+            var requiredEnergy = CalculateRequiredEnergy(ActiveFormation);
+            var totalEnergy = CurrentEnergy + energyInput;
+            
+            if (totalEnergy < requiredEnergy)
+                return null;
+
+            if (!TryUse(requiredEnergy))
+                return null;
+
+            // Execute the formation
+            return ExecuteFormation(ActiveFormation);
+        }
+
+        /// <summary>
+        /// Casts a specific formation by ID
+        /// </summary>
+        public FormationCastResult? CastFormation(string formationId, double energyInput = 0)
+        {
+            if (SetActiveFormation(formationId))
+                return CastActiveFormation(energyInput);
+            return null;
+        }
+
+        /// <summary>
+        /// Gets information about all engraved formations
+        /// </summary>
+        public List<FormationInfo> GetFormationSummaries()
+        {
+            return EngravedFormations.Select(f => new FormationInfo
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Description = f.Description,
+                CircleCount = f.Circles.Count,
+                ConnectionCount = f.Connections.Count,
+                PowerOutput = f.TotalPowerOutput,
+                Stability = f.OverallStability,
+                Complexity = f.FormationComplexity,
+                CastingTime = f.CastingTime,
+                Type = f.Type,
+                RequiredEnergy = CalculateRequiredEnergy(f)
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Updates artifact properties based on engraved formations
+        /// </summary>
+        private void UpdateArtifactProperties()
+        {
+            if (EngravedFormations.Count == 0)
+            {
+                PowerLevel = 1.0;
+                Stability = 1.0;
+                Description = $"Can store up to {MaxFormations} formation(s)";
+                return;
+            }
+
+            // Calculate average properties from all formations
+            PowerLevel = EngravedFormations.Average(f => f.TotalPowerOutput);
+            Stability = EngravedFormations.Average(f => f.OverallStability);
+            
+            // Update description
+            var formationNames = string.Join(", ", EngravedFormations.Select(f => f.Name));
+            Description = $"Contains formation(s): {formationNames}";
+            
+            // Update energy capacity based on most complex formation
+            if (EngravedFormations.Count > 0)
+            {
+                var maxComplexity = EngravedFormations.Max(f => f.FormationComplexity);
+                EnergyCapacity = maxComplexity * 50 + MaxFormations * 100;
+            }
+        }
+
+        /// <summary>
+        /// Calculates the energy required to cast a formation
+        /// </summary>
+        private double CalculateRequiredEnergy(Formation formation)
+        {
+            var baseCost = formation.TotalPowerOutput * 15;
+            var complexityCost = formation.FormationComplexity * 10;
+            var stabilityDiscount = formation.OverallStability * 0.2; // Better stability = less energy needed
+            
+            return Math.Max(10, (baseCost + complexityCost) * (1.0 - stabilityDiscount));
+        }
+
+        /// <summary>
+        /// Executes a formation and returns the results
+        /// </summary>
+        private FormationCastResult ExecuteFormation(Formation formation)
+        {
+            var condition = GetCondition();
+            var effectivePower = formation.TotalPowerOutput * FormationEfficiency * condition;
+            var effectiveStability = formation.OverallStability * condition;
+            
+            // Resolve all connections in the formation
+            formation.ResolveConnections();
+            
+            // Calculate spell effects from all circles
+            var circleEffects = formation.Circles.Values
+                .Select(circle => circle.CalculateSpellEffect())
+                .ToList();
+            
+            return new FormationCastResult
+            {
+                Formation = formation,
+                TotalPower = effectivePower,
+                OverallStability = effectiveStability,
+                CastingTime = formation.CastingTime,
+                CircleEffects = circleEffects,
+                Success = effectiveStability > 0.3, // Formations need higher stability than single circles
+                Message = effectiveStability > 0.3 ? "Formation cast successfully" : "Formation casting failed due to instability"
+            };
+        }
+
+        public override string ToString()
+        {
+            var formationCount = EngravedFormations.Count;
+            var activeInfo = ActiveFormation != null ? $", Active: {ActiveFormation.Name}" : "";
+            return $"{Name}: {formationCount}/{MaxFormations} formations{activeInfo}";
+        }
+    }
+
+    /// <summary>
+    /// Information about a formation stored in an artifact
+    /// </summary>
+    public class FormationInfo
+    {
+        public required string Id { get; set; }
+        public required string Name { get; set; }
+        public required string Description { get; set; }
+        public int CircleCount { get; set; }
+        public int ConnectionCount { get; set; }
+        public double PowerOutput { get; set; }
+        public double Stability { get; set; }
+        public double Complexity { get; set; }
+        public double CastingTime { get; set; }
+        public FormationType Type { get; set; }
+        public double RequiredEnergy { get; set; }
+
+        public override string ToString()
+        {
+            return $"{Name}: {CircleCount} circles, {ConnectionCount} connections, Power: {PowerOutput:F1}";
+        }
+    }
+
+    /// <summary>
+    /// Result of casting a formation from an artifact
+    /// </summary>
+    public class FormationCastResult
+    {
+        public required Formation Formation { get; set; }
+        public double TotalPower { get; set; }
+        public double OverallStability { get; set; }
+        public double CastingTime { get; set; }
+        public List<SpellEffect> CircleEffects { get; set; } = new();
+        public bool Success { get; set; }
+        public string Message { get; set; } = "";
+
+        public override string ToString()
+        {
+            var effectCount = CircleEffects.Count;
+            var status = Success ? "SUCCESS" : "FAILED";
+            return $"Formation Cast [{status}]: {Formation.Name}, {effectCount} effects, Power: {TotalPower:F1}";
         }
     }
 }

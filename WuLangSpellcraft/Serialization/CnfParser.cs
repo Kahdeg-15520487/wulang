@@ -378,13 +378,13 @@ namespace WuLangSpellcraft.Serialization
             return hasCircleId || hasConnection || circleCount > 1;
         }
 
-        public SpellFormation ParseFormation(string cnf)
+        public Formation ParseFormation(string cnf)
         {
             var lexer = new CnfLexer();
             _tokens = lexer.Tokenize(cnf).ToList();
             _currentToken = 0;
 
-            var formation = new SpellFormation();
+            var formation = new Formation("Parsed Formation", "Formation parsed from CNF");
             
             // Parse circle definitions and connections
             while (Current().Type != CnfTokenType.EOF)

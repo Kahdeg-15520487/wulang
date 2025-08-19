@@ -777,6 +777,209 @@ namespace WuLangSpellcraft.Core
             
             return totalPower;
         }
+
+        /// <summary>
+        /// Removes all connections from this circle
+        /// </summary>
+        public void DisconnectAll()
+        {
+            // Remove connections where this circle is the source
+            var outgoingConnections = Connections.Where(c => c.Source == this).ToList();
+            foreach (var connection in outgoingConnections)
+            {
+                connection.Target.Connections.Remove(connection);
+                Connections.Remove(connection);
+            }
+            
+            // Remove connections where this circle is the target
+            var incomingConnections = Connections.Where(c => c.Target == this).ToList();
+            foreach (var connection in incomingConnections)
+            {
+                connection.Source.Connections.Remove(connection);
+                Connections.Remove(connection);
+            }
+            
+            RecalculateComposition();
+        }
+
+        /// <summary>
+        /// Removes a specific connection to another circle
+        /// </summary>
+        public bool DisconnectFrom(MagicCircle targetCircle)
+        {
+            var connection = Connections.FirstOrDefault(c => c.Target == targetCircle && c.Source == this);
+            if (connection != null)
+            {
+                Connections.Remove(connection);
+                targetCircle.Connections.Remove(connection);
+                RecalculateComposition();
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets all connections where this circle is involved (as source or target)
+        /// </summary>
+        public List<CircleConnection> GetAllConnections()
+        {
+            return Connections.ToList();
+        }
+
+        /// <summary>
+        /// Gets the composition stability (considering all connected and nested circles)
+        /// </summary>
+        public double GetCompositionStability()
+        {
+            var allCircles = GetAllCompositionCircles();
+            if (allCircles.Count == 1)
+            {
+                return Stability;
+            }
+            
+            var totalStability = allCircles.Sum(c => c.Stability);
+            var averageStability = totalStability / allCircles.Count;
+            
+            // Account for composition complexity penalty
+            var complexityPenalty = Math.Min(0.3, ComplexityScore * 0.02);
+            
+            return Math.Max(0.1, averageStability - complexityPenalty);
+        }
+
+        /// <summary>
+        /// Arranges circles in a network formation around this circle
+        /// </summary>
+        public void ArrangeNetworkFormation(List<MagicCircle> circlesToArrange, double networkRadius = 20.0)
+        {
+            if (circlesToArrange.Count == 0) return;
+            
+            var angleStep = 2 * Math.PI / circlesToArrange.Count;
+            
+            for (int i = 0; i < circlesToArrange.Count; i++)
+            {
+                var angle = i * angleStep;
+                var circle = circlesToArrange[i];
+                
+                // Position circles around this central circle
+                circle.CenterX = CenterX + networkRadius * Math.Cos(angle);
+                circle.CenterY = CenterY + networkRadius * Math.Sin(angle);
+                circle.Layer = Layer; // Same layer as central circle
+                
+                // Connect to central circle
+                ConnectTo(circle, ConnectionType.Flow);
+            }
+            
+            // Optional: Connect adjacent circles in the network
+            for (int i = 0; i < circlesToArrange.Count; i++)
+            {
+                var nextIndex = (i + 1) % circlesToArrange.Count;
+                circlesToArrange[i].ConnectTo(circlesToArrange[nextIndex], ConnectionType.Direct);
+            }
+        }
+
+        /// <summary>
+        /// Creates a defensive stacked formation with multiple layers
+        /// </summary>
+        public static List<MagicCircle> CreateStackedDefensiveFormation(string baseName, int layers = 3)
+        {
+            var circles = new List<MagicCircle>();
+            
+            for (int i = 0; i < layers; i++)
+            {
+                var radius = 8.0 - (i * 1.5); // Decreasing radius for each layer
+                var circle = new MagicCircle($"{baseName} Layer {i + 1}", radius)
+                {
+                    Layer = i,
+                    CenterX = 0,
+                    CenterY = 0
+                };
+                
+                // Add appropriate talismans based on layer function
+                if (i == 0) // Foundation layer
+                {
+                    circle.AddTalisman(new Talisman(new Element(ElementType.Earth, 1.0), "Foundation Stone"));
+                }
+                else if (i == layers - 1) // Top layer
+                {
+                    circle.AddTalisman(new Talisman(new Element(ElementType.Fire, 1.0), "Energy Projector"));
+                }
+                else // Middle layers
+                {
+                    circle.AddTalisman(new Talisman(new Element(ElementType.Metal, 1.0), "Amplification Ring"));
+                }
+                
+                circles.Add(circle);
+            }
+            
+            return circles;
+        }
+
+        /// <summary>
+        /// Validates the composition for potential issues
+        /// </summary>
+        public List<string> ValidateComposition()
+        {
+            var issues = new List<string>();
+            
+            // Check complexity
+            if (ComplexityScore > 20.0)
+            {
+                issues.Add($"Very high complexity ({ComplexityScore:F1}) may cause casting failures");
+            }
+            
+            // Check stability
+            if (Stability < 0.3)
+            {
+                issues.Add($"Low stability ({Stability:F2}) may cause unpredictable effects");
+            }
+            
+            // Check casting time
+            if (CastingTime > 60.0)
+            {
+                issues.Add($"Very long casting time ({CastingTime:F1}s) may be impractical");
+            }
+            
+            // Check connection distances
+            foreach (var connection in Connections.Where(c => c.Source == this))
+            {
+                var distance = Math.Sqrt(Math.Pow(CenterX - connection.Target.CenterX, 2) + 
+                                       Math.Pow(CenterY - connection.Target.CenterY, 2));
+                
+                var maxDistance = connection.Type switch
+                {
+                    ConnectionType.Direct => 15.0,
+                    ConnectionType.Resonance => 25.0,
+                    ConnectionType.Flow => 20.0,
+                    ConnectionType.Trigger => 10.0,
+                    _ => 10.0
+                };
+                
+                if (distance > maxDistance)
+                {
+                    issues.Add($"Connection to {connection.Target.Name} exceeds maximum range ({distance:F1} > {maxDistance})");
+                }
+            }
+            
+            // Check nested circle overlaps
+            for (int i = 0; i < NestedCircles.Count; i++)
+            {
+                for (int j = i + 1; j < NestedCircles.Count; j++)
+                {
+                    var circle1 = NestedCircles[i];
+                    var circle2 = NestedCircles[j];
+                    var distance = Math.Sqrt(Math.Pow(circle1.CenterX - circle2.CenterX, 2) + 
+                                           Math.Pow(circle1.CenterY - circle2.CenterY, 2));
+                    var minDistance = circle1.Radius + circle2.Radius + 1.0;
+                    
+                    if (distance < minDistance)
+                    {
+                        issues.Add($"Nested circles {circle1.Name} and {circle2.Name} may overlap");
+                    }
+                }
+            }
+            
+            return issues;
+        }
     }
 
     /// <summary>

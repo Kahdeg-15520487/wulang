@@ -51,13 +51,14 @@ namespace WuLangSpellcraft
                 Console.WriteLine("  4. 🔮 Magic Circles");
                 Console.WriteLine("  5. 🏗️ Composition System");
                 Console.WriteLine("  6. 🏺 Artifact System");
-                Console.WriteLine("  7. 💾 Serialization System");
-                Console.WriteLine("  8. 📄 JSON File Parser");
-                Console.WriteLine("  9. 🌀 CNF File Parser");
-                Console.WriteLine(" 10. 🎓 Interactive Workshop");
-                Console.WriteLine(" 11. Exit");
+                Console.WriteLine("  7. � Formation Hierarchy (NEW)");
+                Console.WriteLine("  8. �💾 Serialization System");
+                Console.WriteLine("  9. 📄 JSON File Parser");
+                Console.WriteLine(" 10. 🌀 CNF File Parser");
+                Console.WriteLine(" 11. 🎓 Interactive Workshop");
+                Console.WriteLine(" 12. Exit");
                 Console.WriteLine();
-                Console.Write("Choose a demonstration (1-11): ");
+                Console.Write("Choose a demonstration (1-12): ");
 
                 var input = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(input))
@@ -66,7 +67,7 @@ namespace WuLangSpellcraft
                     Console.WriteLine("🌟 WULANG SPELLCRAFT DEMONSTRATION 🌟");
                     Console.WriteLine(new string('═', 45));
                     Console.WriteLine();
-                    Console.WriteLine("❌ Invalid choice. Please enter 1-11.");
+                    Console.WriteLine("❌ Invalid choice. Please enter 1-12.");
                     continue;
                 }
                 
@@ -98,26 +99,29 @@ namespace WuLangSpellcraft
                         ArtifactSystemDemo.Run();
                         break;
                     case "7":
-                        SerializationSystemDemo.Run();
+                        FormationHierarchyDemo.RunDemo();
                         break;
                     case "8":
-                        JsonFileParserDemo.Run();
+                        SerializationSystemDemo.Run();
                         break;
                     case "9":
-                        CnfFileParserDemo.Run();
+                        JsonFileParserDemo.Run();
                         break;
                     case "10":
-                        InteractiveWorkshop.Run();
+                        CnfFileParserDemo.Run();
                         break;
                     case "11":
+                        InteractiveWorkshop.Run();
+                        break;
+                    case "12":
                         Console.WriteLine("🌟 Thank you for exploring Wu Lang Spellcraft! 🌟");
                         return;
                     default:
-                        Console.WriteLine("❌ Invalid choice. Please enter 1-11.");
+                        Console.WriteLine("❌ Invalid choice. Please enter 1-12.");
                         break;
                 }
 
-                if (input.Trim() != "11")
+                if (input.Trim() != "12")
                 {
                     Console.WriteLine();
                     Console.WriteLine("Press any key to return to main menu...");
@@ -133,6 +137,26 @@ namespace WuLangSpellcraft
             {
                 ShowHelp();
                 return;
+            }
+
+            if (args.Length == 1 && args[0] == "--list")
+            {
+                ShowDemoList();
+                return;
+            }
+
+            if (args.Length == 2 && args[0] == "--demo")
+            {
+                if (int.TryParse(args[1], out int demoNumber) && demoNumber >= 1 && demoNumber <= 11)
+                {
+                    RunSpecificDemo(demoNumber);
+                    return;
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Invalid demo number: {args[1]}. Use --list to see available demos.");
+                    Environment.Exit(1);
+                }
             }
 
             if (args.Length == 2 && args[0] == "--cnf")
@@ -322,30 +346,99 @@ namespace WuLangSpellcraft
 
         private static void ShowHelp()
         {
-            Console.WriteLine("🌟 WULANG SPELLCRAFT CNF PROCESSOR 🌟");
+            Console.WriteLine("🌟 WULANG SPELLCRAFT DEMO 🌟");
             Console.WriteLine();
             Console.WriteLine("Usage:");
             Console.WriteLine("  WuLangSpellcraft.Demo [options]");
             Console.WriteLine();
             Console.WriteLine("Options:");
+            Console.WriteLine("  --demo <number>       Run a specific demo (1-11)");
+            Console.WriteLine("  --list                List all available demos");
             Console.WriteLine("  --cnf <cnf-string>    Process a CNF string directly");
             Console.WriteLine("  --file <file-path>    Process a CNF file");
             Console.WriteLine("  --help, -h            Show this help message");
             Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine("  WuLangSpellcraft.Demo --demo 7                    # Run Formation Hierarchy demo");
+            Console.WriteLine("  WuLangSpellcraft.Demo --list                      # List all demos");
+            Console.WriteLine("  WuLangSpellcraft.Demo --cnf \"C3 Fire Water@center\" # Process CNF");
+            Console.WriteLine("  echo \"main:C3 Fire support:C2 Water main~support\" | WuLangSpellcraft.Demo");
+            Console.WriteLine();
             Console.WriteLine("Pipe Support:");
             Console.WriteLine("  echo \"C3 Fire Water\" | WuLangSpellcraft.Demo");
             Console.WriteLine("  cat spell.cnf | WuLangSpellcraft.Demo");
-            Console.WriteLine();
-            Console.WriteLine("Examples:");
-            Console.WriteLine("  WuLangSpellcraft.Demo --cnf \"C3 Fire Water@center\"");
-            Console.WriteLine("  WuLangSpellcraft.Demo --file myspell.cnf");
-            Console.WriteLine("  echo \"main:C3 Fire Water@center\" | WuLangSpellcraft.Demo");
             Console.WriteLine();
             Console.WriteLine("Supported CNF Features:");
             Console.WriteLine("  • Single circles: C3 Fire Water");
             Console.WriteLine("  • Center talismans: C3 Fire@center Water");
             Console.WriteLine("  • Multi-circle formations: main:C3 Fire support:C2 Water main~support");
             Console.WriteLine("  • Connections: id1~id2 (bidirectional), id1~>id2 (directed)");
+        }
+
+        private static void ShowDemoList()
+        {
+            Console.WriteLine("🌟 AVAILABLE DEMONSTRATIONS 🌟");
+            Console.WriteLine();
+            Console.WriteLine("  1. 🧪 Elemental System");
+            Console.WriteLine("  2. 🎯 Talisman System");
+            Console.WriteLine("  3. ⚖️ Stability-Based Casting");
+            Console.WriteLine("  4. 🔮 Magic Circles");
+            Console.WriteLine("  5. 🏗️ Composition System");
+            Console.WriteLine("  6. 🏺 Artifact System");
+            Console.WriteLine("  7. 📋 Formation Hierarchy (NEW)");
+            Console.WriteLine("  8. 💾 Serialization System");
+            Console.WriteLine("  9. 📄 JSON File Parser");
+            Console.WriteLine(" 10. 🌀 CNF File Parser");
+            Console.WriteLine(" 11. 🎓 Interactive Workshop");
+            Console.WriteLine();
+            Console.WriteLine("Usage: WuLangSpellcraft.Demo --demo <number>");
+        }
+
+        private static void RunSpecificDemo(int demoNumber)
+        {
+            Console.WriteLine("🌟 WULANG SPELLCRAFT DEMONSTRATION 🌟");
+            Console.WriteLine(new string('═', 45));
+            Console.WriteLine();
+
+            switch (demoNumber)
+            {
+                case 1:
+                    ElementalSystemDemo.Run();
+                    break;
+                case 2:
+                    TalismanSystemDemo.Run();
+                    break;
+                case 3:
+                    StabilityCastingDemo.Run();
+                    break;
+                case 4:
+                    MagicCircleDemo.Run();
+                    break;
+                case 5:
+                    CompositionSystemDemo.Run();
+                    break;
+                case 6:
+                    ArtifactSystemDemo.Run();
+                    break;
+                case 7:
+                    FormationHierarchyDemo.RunDemo();
+                    break;
+                case 8:
+                    SerializationSystemDemo.Run();
+                    break;
+                case 9:
+                    JsonFileParserDemo.Run();
+                    break;
+                case 10:
+                    CnfFileParserDemo.Run();
+                    break;
+                case 11:
+                    InteractiveWorkshop.Run();
+                    break;
+                default:
+                    Console.WriteLine($"❌ Demo {demoNumber} not found.");
+                    break;
+            }
         }
     }
 }

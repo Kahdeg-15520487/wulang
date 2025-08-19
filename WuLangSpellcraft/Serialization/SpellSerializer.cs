@@ -165,7 +165,7 @@ namespace WuLangSpellcraft.Serialization
         /// <summary>
         /// Deserializes a spell formation (multi-circle) from Circle Notation Format (CNF)
         /// </summary>
-        public static SpellFormation DeserializeFormationFromCnf(string cnf)
+        public static Formation DeserializeFormationFromCnf(string cnf)
         {
             var parser = new MultiCircleCnfParser();
             return parser.ParseFormation(cnf);

@@ -85,8 +85,11 @@ namespace WuLangSpellcraft.Serialization
         At,             // @
         Arrow,          // ->
         DoubleArrow,    // <->
+        RightArrow,     // →
+        DoubleRightArrow, // ↔
         Equals,         // =
         Tilde,          // ~
+        TildeEquals,    // ~=
         Plus,           // +
         Minus,          // -
         Star,           // * (for element states)

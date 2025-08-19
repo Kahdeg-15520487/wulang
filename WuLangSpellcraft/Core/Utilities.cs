@@ -69,7 +69,7 @@ namespace WuLangSpellcraft.Core
             while (endPos < input.Length)
             {
                 var c = input[endPos];
-                if (char.IsLetter(c) || c == '_' || c == '-' || 
+                if (char.IsLetter(c) || c == '_' || 
                     (endPos > startPos && (char.IsDigit(c) || c == '.'))) // Allow numbers and dots after first character
                 {
                     endPos++;

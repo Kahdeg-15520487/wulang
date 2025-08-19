@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using WuLangSpellcraft.Core;
+using WuLangSpellcraft.Serialization;
 using WuLangSpellcraft.Demo.Demonstrations;
 using WuLangSpellcraft.Demo.Interactive;
 
@@ -300,7 +302,8 @@ namespace WuLangSpellcraft
                     Console.WriteLine("🔗 Connections:");
                     foreach (var connection in formation.Connections)
                     {
-                        Console.WriteLine($"  {connection.SourceId} --{connection.Type}--> {connection.TargetId} (Strength: {connection.Strength:F2})");
+                        var connectionDisplay = GetConnectionDisplay(connection);
+                        Console.WriteLine($"  {connectionDisplay}");
                     }
                     Console.WriteLine();
                 }
@@ -439,6 +442,20 @@ namespace WuLangSpellcraft
                     Console.WriteLine($"❌ Demo {demoNumber} not found.");
                     break;
             }
+        }
+
+        private static string GetConnectionDisplay(FormationConnection connection)
+        {
+            return connection.Type switch
+            {
+                ConnectionType.Basic => $"{connection.SourceId} --Basic--> {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Strong => $"{connection.SourceId} ==Strong==> {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Harmonic => $"{connection.SourceId} ~~Harmonic~~ {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Unstable => $"{connection.SourceId} ~=Unstable=~ {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Directional => $"{connection.SourceId} -->Directional--> {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Bidirectional => $"{connection.SourceId} <--Bidirectional--> {connection.TargetId} (Strength: {connection.Strength:F2})",
+                _ => $"{connection.SourceId} --{connection.Type}--> {connection.TargetId} (Strength: {connection.Strength:F2})"
+            };
         }
     }
 }

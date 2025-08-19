@@ -21,7 +21,7 @@ PowerLevel = Number
 State = "*" | "?" | "!" | "~"
 TalismanId = (Letter | Digit | "_" | "-")+
 CenterElement = Element
-ConnectionType = "-" | "=" | "~" | "≈" | "→" | "↔"
+ConnectionType = "-" | "=" | "~" | "~=" | "->" | "<->"
 Position = "(" Number "," Number "," Number ")"
 Number = ["-"] Digit+ ["." Digit+]
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
@@ -61,7 +61,7 @@ C<radius> <elements>[@<center>]
 ```
 
 **Components:**
-- `C` - Circle identifier (required)
+- `C` - Circle identifier (required, must be uppercase)
 - `<radius>` - Integer radius value (required)
 - `<elements>` - Sequence of element letters (required)
 - `@<center>` - Optional center element/talisman
@@ -122,9 +122,9 @@ Connections between circles use specific symbols:
 - `-` - Basic connection (simple energy flow)
 - `=` - Strong connection (amplified energy flow)
 - `~` - Harmonic connection (resonant frequency)
-- `≈` - Unstable connection (fluctuating energy)
-- `→` - Directional flow (one-way)
-- `↔` - Bidirectional flow (two-way)
+- `~=` - Unstable connection (fluctuating energy)
+- `->` - Directional flow (one-way)
+- `<->` - Bidirectional flow (two-way)
 
 ## Multi-Circle Formations
 
@@ -144,7 +144,7 @@ For formations with multiple circles, use the bracket syntax with circle IDs:
 ```
 [main:C3 FWE] [support:C2 MW] main-support
 [core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core=boost core~balance
-[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha→beta beta↔gamma
+[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha->beta beta<->gamma
 ```
 
 ### Single Circle Notation
@@ -329,7 +329,7 @@ ElementLetter = "F" | "W" | "E" | "M" | "O" | "L" | "A" | "G" | "D" | "R" | "C" 
 PowerLevel = Digit+
 State = "*" | "?" | "!" | "~"
 CenterElement = Element
-Connection = "-" | "=" | "~" | "≈" | "→" | "↔"
+Connection = "-" | "=" | "~" | "~=" | "->" | "<->"
 Position = "(" Number "," Number "," Number ")"
 Number = ["-"] Digit+ ["." Digit+]
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
@@ -400,7 +400,7 @@ C3 FWE@M                   # Circle with center talisman
 ```
 [main:C3 FWE] [support:C2 MW] main-support
 [core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core=boost core~balance
-[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha→beta beta↔gamma
+[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha->beta beta<->gamma
 ```
 
 **Note:** Multi-circle formations with ID-based connections are currently in development.
@@ -462,7 +462,7 @@ C3 FWE@M                   # Circle with center talisman
 
 ### Temporal Notation
 ```
-C3 FWE[t0] → C3 MLD[t1] → C3 OGC[t2]    # Time-based transitions
+C3 FWE[t0] -> C3 MLD[t1] -> C3 OGC[t2]    # Time-based transitions
 ```
 
 ### Conditional Logic

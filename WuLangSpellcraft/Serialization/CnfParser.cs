@@ -61,7 +61,16 @@ namespace WuLangSpellcraft.Serialization
                         yield return new CnfToken(CnfTokenType.Equals, "=", position++);
                         break;
                     case '~':
-                        yield return new CnfToken(CnfTokenType.Tilde, "~", position++);
+                        // Check for unstable connection (~=)
+                        if (position + 1 < input.Length && input[position + 1] == '=')
+                        {
+                            yield return new CnfToken(CnfTokenType.TildeEquals, "~=", position);
+                            position += 2;
+                        }
+                        else
+                        {
+                            yield return new CnfToken(CnfTokenType.Tilde, "~", position++);
+                        }
                         break;
                     case '+':
                         yield return new CnfToken(CnfTokenType.Plus, "+", position++);
@@ -146,7 +155,7 @@ namespace WuLangSpellcraft.Serialization
             // Expect: C<radius> <elements>[@<center>]
             var token = Current();
             
-            if (token.Type != CnfTokenType.Identifier || !token.Value.ToUpperInvariant().StartsWith("C"))
+            if (token.Type != CnfTokenType.Identifier || !token.Value.StartsWith("C"))
             {
                 throw new CnfException($"Expected circle definition 'C<radius>' at position {token.Position}", token.Position);
             }
@@ -350,32 +359,11 @@ namespace WuLangSpellcraft.Serialization
             if (string.IsNullOrWhiteSpace(cnf))
                 return false;
 
-            var lexer = new CnfLexer();
-            var tokens = lexer.Tokenize(cnf).ToList();
+            // Look for bracket syntax [id:circle] or connection symbols
+            bool hasBrackets = cnf.Contains('[') && cnf.Contains(']');
+            bool hasConnections = cnf.Contains('-') || cnf.Contains('=') || cnf.Contains('~');
             
-            // Look for formation markers: circle IDs (id:), connections (~), or multiple circle definitions
-            bool hasCircleId = false;
-            bool hasConnection = false;
-            int circleCount = 0;
-            
-            foreach (var token in tokens)
-            {
-                if (token.Type == CnfTokenType.Identifier && token.Value.Contains(':'))
-                {
-                    hasCircleId = true;
-                }
-                else if (token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.Arrow)
-                {
-                    hasConnection = true;
-                }
-                else if (token.Type == CnfTokenType.Identifier && token.Value.StartsWith('C') && char.IsDigit(token.Value.Length > 1 ? token.Value[1] : '\0'))
-                {
-                    circleCount++;
-                }
-            }
-
-            // Multi-circle if we have circle IDs, connections, or multiple circles
-            return hasCircleId || hasConnection || circleCount > 1;
+            return hasBrackets || hasConnections;
         }
 
         public Formation ParseFormation(string cnf)
@@ -384,145 +372,179 @@ namespace WuLangSpellcraft.Serialization
             _tokens = lexer.Tokenize(cnf).ToList();
             _currentToken = 0;
 
+            // Debug: Print all tokens
+            Console.WriteLine($"Debug: Parsed {_tokens.Count} tokens:");
+            for (int i = 0; i < _tokens.Count; i++)
+            {
+                Console.WriteLine($"  {i}: {_tokens[i].Type} = '{_tokens[i].Value}'");
+            }
+
             var formation = new Formation("Parsed Formation", "Formation parsed from CNF");
-            
-            // Parse circle definitions and connections
+            var circles = new Dictionary<string, MagicCircle>();
+
+            // Phase 1: Parse all circle definitions
             while (Current().Type != CnfTokenType.EOF)
             {
-                if (IsCircleDefinition())
+                Console.WriteLine($"Debug: Phase 1 - Current token: {Current().Type} = '{Current().Value}'");
+                if (Current().Type == CnfTokenType.LeftBracket)
                 {
-                    var (circleId, circle) = ParseCircleWithId();
-                    formation.AddCircle(circleId, circle);
+                    var (id, circle) = ParseBracketedCircle();
+                    circles[id] = circle;
+                    formation.AddCircle(id, circle);
                 }
-                else if (IsConnectionDefinition())
+                else if (IsConnectionStart())
                 {
+                    Console.WriteLine("Debug: Found connection start, breaking from Phase 1");
+                    // We've reached connections, break out of circle parsing
+                    break;
+                }
+                else if (IsSimpleCircle())
+                {
+                    // Handle single circle without brackets
+                    var circle = ParseSingleCircle();
+                    var id = Core.Utilities.GenerateShortId();
+                    circles[id] = circle;
+                    formation.AddCircle(id, circle);
+                    break; // Single circle, no connections expected
+                }
+                else
+                {
+                    Console.WriteLine($"Debug: Skipping unexpected token: {Current().Type} = '{Current().Value}'");
+                    Advance(); // Skip unexpected tokens
+                }
+            }
+
+            // Phase 2: Parse connections
+            Console.WriteLine("Debug: Starting Phase 2 - connections");
+            while (Current().Type != CnfTokenType.EOF)
+            {
+                Console.WriteLine($"Debug: Phase 2 - Current token: {Current().Type} = '{Current().Value}'");
+                if (IsConnectionStart())
+                {
+                    Console.WriteLine("Debug: Parsing connection");
                     var connection = ParseConnection();
                     formation.AddConnection(connection);
                 }
                 else
                 {
-                    throw new CnfException($"Unexpected token '{Current().Value}' at position {Current().Position}", Current().Position);
+                    Console.WriteLine($"Debug: Skipping non-connection token: {Current().Type} = '{Current().Value}'");
+                    Advance(); // Skip unexpected tokens
                 }
             }
 
             return formation;
         }
 
-        private bool IsCircleDefinition()
+        private (string id, MagicCircle circle) ParseBracketedCircle()
         {
-            var current = Current();
-            
-            // Check for "circleId: C..." pattern
-            if (current.Type == CnfTokenType.Identifier && 
-                _currentToken + 1 < _tokens.Count &&
-                _tokens[_currentToken + 1].Type == CnfTokenType.Colon &&
-                _currentToken + 2 < _tokens.Count &&
-                _tokens[_currentToken + 2].Type == CnfTokenType.Identifier &&
-                _tokens[_currentToken + 2].Value.ToUpperInvariant().StartsWith("C"))
+            // Expect: [id:circle] format
+            if (Current().Type != CnfTokenType.LeftBracket)
             {
-                return true;
+                throw new CnfException($"Expected '[' at position {Current().Position}", Current().Position);
             }
-            
-            // Check for direct "C..." pattern
-            return current.Type == CnfTokenType.Identifier && current.Value.ToUpperInvariant().StartsWith("C");
-        }
+            Advance(); // Skip [
 
-        private bool IsConnectionDefinition()
-        {
-            // Look for patterns like "id -> id" or "id = id"
-            var current = Current();
-            if (current.Type == CnfTokenType.Identifier)
+            // Parse circle ID
+            if (Current().Type != CnfTokenType.Identifier)
             {
-                for (int i = _currentToken + 1; i < _tokens.Count && i < _currentToken + 5; i++)
-                {
-                    var token = _tokens[i];
-                    if (token.Type == CnfTokenType.Arrow || token.Type == CnfTokenType.Equals || 
-                        token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.DoubleArrow)
-                    {
-                        return true;
-                    }
-                    if (token.Type == CnfTokenType.EOF || token.Type == CnfTokenType.Identifier && 
-                        token.Value.ToUpperInvariant().StartsWith("C"))
-                    {
-                        break;
-                    }
-                }
+                throw new CnfException($"Expected circle ID at position {Current().Position}", Current().Position);
             }
-            return false;
-        }
+            string circleId = Current().Value;
+            Advance();
 
-        private (string id, MagicCircle circle) ParseCircleWithId()
-        {
-            string circleId;
-            
-            // Check if we have an explicit ID
-            if (Current().Type == CnfTokenType.Identifier && 
-                _currentToken + 1 < _tokens.Count &&
-                _tokens[_currentToken + 1].Type == CnfTokenType.Colon)
+            // Expect colon
+            if (Current().Type != CnfTokenType.Colon)
             {
-                circleId = Current().Value;
-                Advance(); // Skip ID
-                Advance(); // Skip colon
+                throw new CnfException($"Expected ':' after circle ID at position {Current().Position}", Current().Position);
             }
-            else
+            Advance(); // Skip :
+
+            // Parse circle definition - collect tokens until we hit ]
+            var circleTokens = new List<CnfToken>();
+            while (Current().Type != CnfTokenType.RightBracket && Current().Type != CnfTokenType.EOF)
             {
-                circleId = Core.Utilities.GenerateShortId(); // Auto-generate ID
-            }
-            
-            var parser = new CnfParser();
-            var remainingTokens = _tokens.Skip(_currentToken).ToList();
-            var cnf = string.Join(" ", remainingTokens.TakeWhile(t => !IsConnectionStart(t)).Select(t => t.Value));
-            
-            var circle = parser.ParseCircle(cnf);
-            
-            // Advance past the circle definition
-            while (Current().Type != CnfTokenType.EOF && !IsConnectionStart(Current()) && !IsCircleDefinition())
-            {
+                circleTokens.Add(Current());
                 Advance();
             }
-            
+
+            if (Current().Type != CnfTokenType.RightBracket)
+            {
+                throw new CnfException($"Expected ']' to close circle definition at position {Current().Position}", Current().Position);
+            }
+            Advance(); // Skip ]
+
+            // Parse the circle from collected tokens
+            var circleText = string.Join(" ", circleTokens.Select(t => t.Value));
+            var parser = new CnfParser();
+            var circle = parser.ParseCircle(circleText);
+
             return (circleId, circle);
         }
 
-        private bool IsConnectionStart(CnfToken token)
+        private bool IsSimpleCircle()
         {
-            return token.Type == CnfTokenType.Arrow || token.Type == CnfTokenType.Equals || 
-                   token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.DoubleArrow;
+            var current = Current();
+            return current.Type == CnfTokenType.Identifier && 
+                   current.Value.StartsWith("C");
+        }
+
+        private MagicCircle ParseSingleCircle()
+        {
+            // Collect all remaining tokens for single circle parsing
+            var tokens = new List<CnfToken>();
+            while (Current().Type != CnfTokenType.EOF && !IsConnectionToken(Current()))
+            {
+                tokens.Add(Current());
+                Advance();
+            }
+
+            var circleText = string.Join(" ", tokens.Select(t => t.Value));
+            var parser = new CnfParser();
+            return parser.ParseCircle(circleText);
+        }
+
+        private bool IsConnectionToken(CnfToken token)
+        {
+            return token.Type == CnfTokenType.Minus || 
+                   token.Type == CnfTokenType.Equals || 
+                   token.Type == CnfTokenType.Tilde ||
+                   token.Type == CnfTokenType.TildeEquals ||
+                   token.Type == CnfTokenType.Arrow ||
+                   token.Type == CnfTokenType.DoubleArrow;
+        }
+
+        private bool IsConnectionStart()
+        {
+            // Look for pattern: identifier connection_symbol identifier
+            if (Current().Type != CnfTokenType.Identifier)
+                return false;
+            
+            if (_currentToken + 1 >= _tokens.Count)
+                return false;
+                
+            var nextToken = _tokens[_currentToken + 1];
+            return IsConnectionToken(nextToken);
         }
 
         private FormationConnection ParseConnection()
         {
-            var sourceId = Current().Value;
+            // Parse: sourceId connectionType targetId
             if (Current().Type != CnfTokenType.Identifier)
             {
                 throw new CnfException($"Expected source ID at position {Current().Position}", Current().Position);
             }
+            var sourceId = Current().Value;
             Advance();
 
-            // Parse connection type and optional strength
+            // Parse connection type
             var connectionType = ParseConnectionType();
-            double strength = 1.0;
-            
-            // Check for strength specification {value}
-            if (Current().Type == CnfTokenType.LeftBrace)
-            {
-                Advance(); // Skip {
-                if (Current().Type == CnfTokenType.Number)
-                {
-                    double.TryParse(Current().Value, NumberStyles.Float, CultureInfo.InvariantCulture, out strength);
-                    Advance(); // Skip number
-                }
-                if (Current().Type == CnfTokenType.RightBrace)
-                {
-                    Advance(); // Skip }
-                }
-            }
 
-            var targetId = Current().Value;
+            // Parse target ID
             if (Current().Type != CnfTokenType.Identifier)
             {
                 throw new CnfException($"Expected target ID at position {Current().Position}", Current().Position);
             }
+            var targetId = Current().Value;
             Advance();
 
             return new FormationConnection
@@ -530,7 +552,7 @@ namespace WuLangSpellcraft.Serialization
                 SourceId = sourceId,
                 TargetId = targetId,
                 Type = connectionType,
-                Strength = strength
+                Strength = 1.0
             };
         }
 
@@ -541,10 +563,12 @@ namespace WuLangSpellcraft.Serialization
             
             return token.Type switch
             {
-                CnfTokenType.Arrow => ConnectionType.Direct,
-                CnfTokenType.Equals => ConnectionType.Resonance,
-                CnfTokenType.Tilde => ConnectionType.Flow,
-                CnfTokenType.DoubleArrow => ConnectionType.Flow, // Bidirectional flow
+                CnfTokenType.Minus => ConnectionType.Basic,          // - = basic connection (simple energy flow)
+                CnfTokenType.Equals => ConnectionType.Strong,        // = = strong connection (amplified energy flow)
+                CnfTokenType.Tilde => ConnectionType.Harmonic,       // ~ = harmonic connection (resonant frequency)
+                CnfTokenType.TildeEquals => ConnectionType.Unstable, // ~= = unstable connection (fluctuating energy)
+                CnfTokenType.Arrow => ConnectionType.Directional,    // -> = directional flow (one-way)
+                CnfTokenType.DoubleArrow => ConnectionType.Bidirectional, // <-> = bidirectional flow (two-way)
                 _ => throw new CnfException($"Invalid connection type '{token.Value}' at position {token.Position}", token.Position)
             };
         }

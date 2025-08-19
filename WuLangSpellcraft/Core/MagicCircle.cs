@@ -1002,10 +1002,16 @@ namespace WuLangSpellcraft.Core
     /// </summary>
     public enum ConnectionType
     {
-        Direct,     // Direct energy transfer
-        Resonance,  // Harmonic amplification
-        Flow,       // Continuous energy flow
-        Trigger     // Conditional activation
+        Direct,         // Direct energy transfer
+        Resonance,      // Harmonic amplification  
+        Flow,           // Continuous energy flow
+        Trigger,        // Conditional activation
+        Basic,          // Basic connection (simple energy flow) - CNF: -
+        Strong,         // Strong connection (amplified energy flow) - CNF: =
+        Harmonic,       // Harmonic connection (resonant frequency) - CNF: ~
+        Unstable,       // Unstable connection (fluctuating energy) - CNF: ~=
+        Directional,    // Directional flow (one-way) - CNF: ->
+        Bidirectional   // Bidirectional flow (two-way) - CNF: <->
     }
 
     /// <summary>

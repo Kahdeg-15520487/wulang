@@ -136,21 +136,65 @@ namespace WuLangSpellcraft.Serialization
                 }
             }
             
-            // Serialize each ring talisman
-            for (int i = 0; i < circle.Talismans.Count; i++)
+            // Serialize each ring talisman with repetition pattern detection
+            SerializeRingTalismansWithRepetition(circle.Talismans, result, options);
+            
+            return result.ToString();
+        }
+
+        /// <summary>
+        /// Serializes ring talismans with repetition pattern detection
+        /// </summary>
+        private static void SerializeRingTalismansWithRepetition(IReadOnlyList<Talisman> talismans, StringBuilder result, CnfOptions options)
+        {
+            var i = 0;
+            while (i < talismans.Count)
             {
-                var talisman = circle.Talismans[i];
-                var elementStr = SerializeTalismanToCnf(talisman, options);
-                result.Append(elementStr);
+                var currentTalisman = talismans[i];
+                var currentElementStr = SerializeTalismanToCnf(currentTalisman, options);
                 
-                // Add separator between elements (except for last one)
-                if (i < circle.Talismans.Count - 1 && !options.UseCompactFormat)
+                // Count consecutive identical talismans
+                var count = 1;
+                while (i + count < talismans.Count && 
+                       AreEquivalentForSerialization(talismans[i], talismans[i + count]))
+                {
+                    count++;
+                }
+                
+                // Add space before element if not first
+                if (result.Length > 0 && result[result.Length - 1] != ' ')
+                {
+                    result.Append(" ");
+                }
+                
+                // Serialize with repetition pattern if count > 1
+                if (count > 1)
+                {
+                    result.Append($"{currentElementStr}*{count}");
+                }
+                else
+                {
+                    result.Append(currentElementStr);
+                }
+                
+                i += count;
+                
+                // Add separator if there are more elements
+                if (i < talismans.Count && !options.UseCompactFormat)
                 {
                     result.Append(" ");
                 }
             }
-            
-            return result.ToString();
+        }
+
+        /// <summary>
+        /// Checks if two talismans are equivalent for serialization purposes
+        /// </summary>
+        private static bool AreEquivalentForSerialization(Talisman a, Talisman b)
+        {
+            return a.PrimaryElement.Type == b.PrimaryElement.Type &&
+                   a.PrimaryElement.State == b.PrimaryElement.State &&
+                   Math.Abs(a.PowerLevel - b.PowerLevel) < 0.001; // Account for floating point precision
         }
 
         /// <summary>

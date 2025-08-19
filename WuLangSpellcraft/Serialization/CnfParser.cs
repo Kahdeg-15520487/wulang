@@ -194,12 +194,32 @@ namespace WuLangSpellcraft.Serialization
             // Parse elements
             while (Current().Type != CnfTokenType.EOF && Current().Type != CnfTokenType.At)
             {
-                var talisman = ParseTalisman();
-                if (talisman != null)
+                // Check for group repetition: (FW)*3
+                if (Current().Type == CnfTokenType.LeftParen)
                 {
-                    // Calculate position angle based on talisman index
-                    var angle = (2 * Math.PI * circle.Talismans.Count) / 8; // Assume 8 positions for now
-                    circle.AddTalisman(talisman, angle);
+                    var groupTalismans = ParseGroupWithRepetition();
+                    foreach (var talisman in groupTalismans)
+                    {
+                        var angle = (2 * Math.PI * circle.Talismans.Count) / 8; // Assume 8 positions for now
+                        circle.AddTalisman(talisman, angle);
+                    }
+                }
+                else
+                {
+                    var talisman = ParseTalisman();
+                    if (talisman != null)
+                    {
+                        // Check for element repetition: F*8
+                        var repetitionCount = CheckForRepetition();
+                        
+                        // Add the talisman(s) based on repetition count
+                        for (int i = 0; i < repetitionCount; i++)
+                        {
+                            var clonedTalisman = i == 0 ? talisman : CreateClonedTalisman(talisman, i + 1);
+                            var angle = (2 * Math.PI * circle.Talismans.Count) / 8; // Assume 8 positions for now
+                            circle.AddTalisman(clonedTalisman, angle);
+                        }
+                    }
                 }
             }
 
@@ -365,6 +385,133 @@ namespace WuLangSpellcraft.Serialization
             var talismanRegular = new Talisman(elementRegular, talismanName);
 
             return talismanRegular;
+        }
+
+        /// <summary>
+        /// Checks for repetition pattern (*number) after current position
+        /// Returns the repetition count (default 1 if no repetition found)
+        /// </summary>
+        private int CheckForRepetition()
+        {
+            if (Current().Type == CnfTokenType.Star)
+            {
+                if (_currentToken + 1 < _tokens.Count)
+                {
+                    var nextToken = _tokens[_currentToken + 1];
+                    
+                    if (nextToken.Type == CnfTokenType.Number)
+                    {
+                        Advance(); // Skip *
+                        var countToken = Current();
+                        Advance(); // Skip number
+                        
+                        if (!int.TryParse(countToken.Value, out var count))
+                        {
+                            throw new CnfException($"Invalid repetition count '{countToken.Value}' - must be a valid integer at position {countToken.Position}", countToken.Position);
+                        }
+                        
+                        if (count <= 0)
+                        {
+                            throw new CnfException($"Invalid repetition count '{count}' - must be a positive integer (greater than 0) at position {countToken.Position}", countToken.Position);
+                        }
+                        
+                        return count;
+                    }
+                    else if (nextToken.Type == CnfTokenType.Minus)
+                    {
+                        // Handle *- pattern (negative number)
+                        if (_currentToken + 2 < _tokens.Count && _tokens[_currentToken + 2].Type == CnfTokenType.Number)
+                        {
+                            var numberToken = _tokens[_currentToken + 2];
+                            throw new CnfException($"Invalid repetition count '*-{numberToken.Value}' - repetition count must be a positive integer at position {Current().Position}", Current().Position);
+                        }
+                        else
+                        {
+                            throw new CnfException($"Invalid repetition pattern '*-' - expected positive integer after '*' at position {Current().Position}", Current().Position);
+                        }
+                    }
+                    else
+                    {
+                        throw new CnfException($"Invalid repetition pattern '*{nextToken.Value}' - expected positive integer after '*' at position {Current().Position}", Current().Position);
+                    }
+                }
+                else
+                {
+                    throw new CnfException($"Invalid repetition pattern '*' - expected positive integer after '*' at position {Current().Position}", Current().Position);
+                }
+            }
+            
+            return 1; // Default: no repetition
+        }
+
+        /// <summary>
+        /// Creates a cloned talisman with a unique name for repetition
+        /// </summary>
+        private Talisman CreateClonedTalisman(Talisman original, int index)
+        {
+            var clonedElement = new Element(original.PrimaryElement.Type, original.PrimaryElement.Energy, original.PrimaryElement.State);
+            var clonedName = $"{original.Name} #{index}";
+            return new Talisman(clonedElement, clonedName) { PowerLevel = original.PowerLevel };
+        }
+
+        /// <summary>
+        /// Parses group repetition patterns like (FW)*3
+        /// </summary>
+        private List<Talisman> ParseGroupWithRepetition()
+        {
+            var result = new List<Talisman>();
+            
+            if (Current().Type != CnfTokenType.LeftParen)
+            {
+                throw new CnfException($"Expected '(' for group repetition at position {Current().Position}", Current().Position);
+            }
+            
+            Advance(); // Skip (
+            
+            // Parse elements within the group
+            var groupTalismans = new List<Talisman>();
+            while (Current().Type != CnfTokenType.RightParen && Current().Type != CnfTokenType.EOF)
+            {
+                var talisman = ParseTalisman();
+                if (talisman != null)
+                {
+                    groupTalismans.Add(talisman);
+                }
+            }
+            
+            if (Current().Type != CnfTokenType.RightParen)
+            {
+                throw new CnfException($"Expected ')' to close group at position {Current().Position}", Current().Position);
+            }
+            
+            Advance(); // Skip )
+            
+            // Check for repetition after the group
+            var repetitionCount = CheckForRepetition();
+            
+            // Expand the group based on repetition count
+            for (int rep = 0; rep < repetitionCount; rep++)
+            {
+                for (int i = 0; i < groupTalismans.Count; i++)
+                {
+                    var original = groupTalismans[i];
+                    if (rep == 0 && i == 0)
+                    {
+                        // Use original for first talisman of first repetition
+                        result.Add(original);
+                    }
+                    else
+                    {
+                        // Clone for all other instances
+                        var clonedElement = new Element(original.PrimaryElement.Type, original.PrimaryElement.Energy, original.PrimaryElement.State);
+                        var clonedName = $"{original.Name} (Rep {rep + 1}, Item {i + 1})";
+                        var clonedTalisman = new Talisman(clonedElement, clonedName) { PowerLevel = original.PowerLevel };
+                        result.Add(clonedTalisman);
+                    }
+                }
+            }
+            
+            return result;
         }
 
         private CnfToken Current()
@@ -535,10 +682,25 @@ namespace WuLangSpellcraft.Serialization
                     i + 1 < tokens.Count)
                 {
                     var nextToken = tokens[i + 1];
-                    if (nextToken.Type == CnfTokenType.Star || 
-                        nextToken.Type == CnfTokenType.Question || 
-                        nextToken.Type == CnfTokenType.Exclamation || 
-                        nextToken.Type == CnfTokenType.Tilde)
+                    
+                    // Special handling for Star (*) - only treat as element state if NOT followed by a number
+                    if (nextToken.Type == CnfTokenType.Star)
+                    {
+                        // Check if this is a repetition pattern (element*number)
+                        bool isRepetitionPattern = (i + 2 < tokens.Count && tokens[i + 2].Type == CnfTokenType.Number);
+                        
+                        if (!isRepetitionPattern)
+                        {
+                            // This is an element state, not a repetition pattern
+                            result.Add(token.Value + nextToken.Value);
+                            i++; // Skip the next token since we've consumed it
+                            continue;
+                        }
+                        // If it's a repetition pattern, fall through to add token normally
+                    }
+                    else if (nextToken.Type == CnfTokenType.Question || 
+                             nextToken.Type == CnfTokenType.Exclamation || 
+                             nextToken.Type == CnfTokenType.Tilde)
                     {
                         // Combine element and state
                         result.Add(token.Value + nextToken.Value);

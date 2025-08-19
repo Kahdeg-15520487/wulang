@@ -193,7 +193,11 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 "C4 F:core W:shield E:ground", // With IDs
                 "C2.5 F2:flame W1.5:water",   // Combined power and IDs
                 "C6 FWEMO",                    // Compact format
-                "C1 V"                        // Single void element
+                "C1 V",                       // Single void element
+                "C10 FWEML",                  // All base elements
+                "C0.5 C:chaos D:dark",        // Derived elements
+                "C7.5 F3.14:pi W2.71:euler",  // Mathematical constants
+                "C12 FWEMOLINDGCV"            // All elements compact
             };
             
             foreach (var cnf in testCases)
@@ -208,7 +212,8 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     foreach (var talisman in circle.Talismans)
                     {
                         var symbol = ElementSymbols.GetSymbol(talisman.PrimaryElement.Type);
-                        Console.WriteLine($"      {symbol} ({talisman.PrimaryElement.Type}): Power {talisman.PrimaryElement.Energy:F1}");
+                        var nameInfo = talisman.Name.Contains("Talisman") ? "" : $" '{talisman.Name}'";
+                        Console.WriteLine($"      {symbol} ({talisman.PrimaryElement.Type}): Power {talisman.PrimaryElement.Energy:F2}{nameInfo}");
                     }
                     Console.ResetColor();
                 }
@@ -219,6 +224,17 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     Console.ResetColor();
                 }
             }
+            
+            Console.WriteLine();
+            Console.WriteLine("📊 CNF FORMAT SUMMARY:");
+            Console.WriteLine("   • C<radius> - Circle with specified radius");
+            Console.WriteLine("   • F W E M O - Element symbols (Fire, Water, Earth, Metal, wOod)");
+            Console.WriteLine("   • L N I D G - Derived elements (Lightning, wiNd, lIght, Dark, forGe)");
+            Console.WriteLine("   • C V - Special elements (Chaos, Void)");
+            Console.WriteLine("   • F2.5 - Element with power level");
+            Console.WriteLine("   • F:id - Element with named ID");
+            Console.WriteLine("   • F2.5:flame - Element with both power and ID");
+            Console.WriteLine("   • FWEMO - Compact format (no spaces)");
         }
     }
 }

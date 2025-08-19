@@ -10,11 +10,11 @@ Circle Notation Format (CNF) is a compact, human-readable text format for repres
 Formation = Circle | ComplexFormation
 ComplexFormation = "[" Circle "]" (Connection "[" Circle "]")*
 Circle = "C" Radius Elements ["@" CenterElement] [Position]
-Radius = Digit+
+Radius = Number
 Elements = Element+
 Element = ElementLetter [PowerLevel] [State] [":" TalismanId]
-ElementLetter = "F" | "W" | "E" | "M" | "O" | "L" | "A" | "G" | "D" | "R" | "C" | "V"
-PowerLevel = Digit+
+ElementLetter = "F" | "W" | "E" | "M" | "O" | "L" | "N" | "I" | "D" | "G" | "C" | "V"
+PowerLevel = Number
 State = "*" | "?" | "!" | "~"
 TalismanId = (Letter | Digit | "_" | "-")+
 CenterElement = Element
@@ -44,10 +44,10 @@ All elements are represented by single uppercase letters:
 
 #### Derived Elements
 - `L` - Lightning (雷) - Fire + Metal - Sudden directed energy
-- `A` - Wind (風) - Wood + Water - Adaptive movement
-- `G` - Light (光) - Fire + Wood - Illumination, revelation
+- `N` - Wind (風) - Wood + Water - Adaptive movement (wiNd)
+- `I` - Light (光) - Fire + Wood - Illumination, revelation (lIght)
 - `D` - Dark (闇) - Earth + Water - Concealment, mystery
-- `R` - Forge (鍛) - Metal + Wood - Creation, crafting
+- `G` - Forge (鍛) - Metal + Wood - Creation, crafting (forGe)
 - `C` - Chaos (混沌) - All 5 base elements - Unpredictable potential
 - `V` - Void (虛無) - Absence of elements - Balance, neutralization
 
@@ -65,10 +65,10 @@ C<radius> <elements>[@<center>]
 
 **Examples:**
 ```
-C3 FWE          # Three talismans: Fire, Water, Earth (auto-generated IDs)
-C5 FLGEMWLD     # Eight talismans around circumference (auto-generated IDs)
-C1 F            # Single Fire talisman (auto-generated ID)
-C4 FWEO@M       # Four outer talismans with Metal at center (auto-generated IDs)
+C3 FWE          # Three talismans: Fire, Water, Earth
+C5 FLEMWID     # Seven talismans around circumference
+C1 F            # Single Fire talisman
+C4 FWEO@M       # Four outer talismans with Metal at center
 C3 F:core W:flow E:anchor    # Named talisman references
 C4 F:1 W:2 E:3 O:4@M:center  # Mixed numbered and named references
 ```
@@ -79,7 +79,7 @@ Power levels can be specified after each element using numbers:
 
 ```
 C3 F2W1E3       # Fire power 2, Water power 1, Earth power 3
-C5 FLG2E3MWL1D  # Mixed power levels (default is 1)
+C5 FLIG2E3MNI  # Mixed power levels (default is 1)
 C3 F2:core W1:flow E3:anchor  # Power levels with named IDs
 ```
 
@@ -131,8 +131,8 @@ Connections between circles use specific symbols:
 
 **Examples:**
 ```
-[C3 FWE] - [C4 MLGO]                    # Two circles, basic connection
-[C5 FLGEMWLD] = [C2 FW]                 # Strong connection
+[C3 FWE] - [C4 MLOG]                    # Two circles, basic connection
+[C5 FLIGEMWND] = [C2 FW]                # Strong connection
 [C3 FWE] ~ [C3 MLD] ~ [C3 OGC]          # Chain of harmonic connections
 [C1 F] → [C3 WEO] ← [C1 M]              # Directional flows
 ```
@@ -144,8 +144,8 @@ Connections between circles use specific symbols:
 Use `|` to separate layers from inner to outer:
 
 ```
-C1 F|C3 WEO|C5 MLGDA    # Three concentric layers
-C2 FW@E|C4 MLGO         # Two layers with center element
+C1 F|C3 WEO|C5 MLIGDN    # Three concentric layers
+C2 FW@E|C4 MLOG         # Two layers with center element
 ```
 
 ### Complex Formations
@@ -349,7 +349,57 @@ Added strong connection to new circle
 + stability_ward=[C3 E2E2E2] = [C3 W3W3W3] = [C3 E2E2E2]
 ```
 
+### Working Examples (Tested Implementation)
+
+The following examples are verified to work with the current implementation:
+
+```
+C3 F W E                    # Basic three-element circle
+C5 F2.5 W1.2 L0.8          # Circle with power levels
+C4 F:core W:shield E:ground # Circle with named IDs
+C2.5 F2:flame W1.5:water   # Combined power and IDs
+C6 FWEMO                   # Compact format (5 elements)
+C1 V                       # Single void element
+C10 FWEML                  # Base + derived elements
+C0.5 C:chaos D:dark        # Special elements with IDs
+C7.5 F3.14:pi W2.71:euler  # Mathematical constants
+C12 FWEMOLINDGCV           # All elements (12 total)
+```
+
+**Element Symbol Reference:**
+- F=Fire, W=Water, E=Earth, M=Metal, O=Wood
+- L=Lightning, N=Wind, I=Light, D=Dark, G=Forge  
+- C=Chaos, V=Void
+
+**Power Level Precision:**
+- Supports decimal values: `F2.5`, `W1.2`, `L0.8`
+- Mathematical constants: `F3.14:pi`, `W2.71:euler`
+- High precision maintained in round-trip conversion
+
 ## Implementation Notes
+
+### Current Implementation Status
+
+**✅ Implemented Features:**
+- Basic circle parsing: `C3 FWE`
+- Power levels: `C5 F2.5 W1.2 L0.8`
+- Talisman IDs: `C4 F:core W:shield E:ground`
+- Combined notation: `C2.5 F2:flame W1.5:water`
+- Compact format: `C6 FWEMO` (each letter as separate element)
+- Decimal radius support: `C2.5`
+- All 12 element types: Fire, Water, Earth, Metal, Wood, Lightning, Wind, Light, Dark, Forge, Chaos, Void
+- Round-trip serialization/deserialization
+- Mathematical precision power levels: `F3.14:pi`
+
+**⚠️ Planned Features (Not Yet Implemented):**
+- Element states (`*`, `?`, `!`, `~`)
+- Center elements (`@`)
+- Multi-circle formations with connections
+- Position notation
+- Multi-layer circles
+- Geometric patterns and shorthand
+- Temporal and conditional logic
+- Macro definitions
 
 ### Parser Considerations
 - Left-to-right parsing for connections

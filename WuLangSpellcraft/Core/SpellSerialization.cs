@@ -707,7 +707,8 @@ namespace WuLangSpellcraft.Core.Serialization
             while (endPos < input.Length)
             {
                 var c = input[endPos];
-                if (char.IsLetterOrDigit(c) || c == '_' || c == '-')
+                if (char.IsLetter(c) || c == '_' || c == '-' || 
+                    (endPos > startPos && (char.IsDigit(c) || c == '.'))) // Allow numbers and dots after first character
                 {
                     endPos++;
                 }
@@ -784,22 +785,42 @@ namespace WuLangSpellcraft.Core.Serialization
                 return null;
             }
 
-            // First character should be element symbol
+            // Check if this is a compact format (multiple element symbols in one token)
+            if (token.Value.Length > 1 && token.Value.All(ElementSymbols.IsValidSymbol))
+            {
+                // This is compact format - we'll only parse the first element here
+                // The parser will be called again for subsequent elements
+                var firstSymbol = token.Value[0];
+                var elementType = ElementSymbols.GetElementType(firstSymbol);
+                
+                // Update the token to contain the remaining symbols
+                _tokens[_currentToken] = token with { Value = token.Value[1..] };
+                
+                // Create element and talisman for first symbol
+                var element = new Element(elementType, 1.0);
+                var talisman = new Talisman(element, $"Talisman {elementType}");
+                
+                return talisman;
+            }
+
+            // Regular parsing for single elements with potential power levels and IDs
             var elementSymbol = token.Value[0];
             if (!ElementSymbols.IsValidSymbol(elementSymbol))
             {
                 throw new CnfException($"Invalid element symbol '{elementSymbol}' at position {token.Position}", token.Position);
             }
 
-            var elementType = ElementSymbols.GetElementType(elementSymbol);
+            var elementTypeRegular = ElementSymbols.GetElementType(elementSymbol);
             var powerLevel = 1.0;
             string? talismanId = null;
 
-            // Check if there's a power level in the same token
+            // Check if there's a power level in the same token (e.g., "F2.5")
             if (token.Value.Length > 1)
             {
-                var powerStr = token.Value[1..];
-                if (double.TryParse(powerStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var power))
+                var remaining = token.Value[1..];
+                
+                // Try to parse the entire remaining string as a number
+                if (double.TryParse(remaining, NumberStyles.Float, CultureInfo.InvariantCulture, out var power))
                 {
                     powerLevel = power;
                 }
@@ -807,7 +828,7 @@ namespace WuLangSpellcraft.Core.Serialization
 
             Advance(); // Move past element token
 
-            // Check for power level as separate number
+            // Check for power level as separate number token
             if (Current().Type == CnfTokenType.Number)
             {
                 if (double.TryParse(Current().Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var separatePower))
@@ -834,11 +855,11 @@ namespace WuLangSpellcraft.Core.Serialization
             }
 
             // Create element and talisman
-            var element = new Element(elementType, powerLevel);
-            var talismanName = talismanId ?? $"Talisman {elementType}";
-            var talisman = new Talisman(element, talismanName);
+            var elementRegular = new Element(elementTypeRegular, powerLevel);
+            var talismanName = talismanId ?? $"Talisman {elementTypeRegular}";
+            var talismanRegular = new Talisman(elementRegular, talismanName);
 
-            return talisman;
+            return talismanRegular;
         }
 
         private CnfToken Current()

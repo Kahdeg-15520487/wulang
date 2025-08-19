@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using WuLangSpellcraft.Core;
 using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Demo.Utilities;
 
 namespace WuLangSpellcraft.Demo.Demonstrations
 {
@@ -39,6 +40,24 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"❌ Serialization error: {ex.Message}");
                 Console.ResetColor();
+            }
+            
+            Console.WriteLine();
+            Console.WriteLine("🎨 VISUAL CNF EXAMPLES:");
+            Console.WriteLine(new string('─', 30));
+            
+            var visualExamples = new[]
+            {
+                "C3 FWE",
+                "C5 F2.5W1.2L0.8",
+                "C4 F:core W:shield E:ground",
+                "C7 FWEMOLIN"
+            };
+            
+            foreach (var cnf in visualExamples)
+            {
+                CircleVisualizer.RenderCnfExample(cnf);
+                Console.WriteLine();
             }
         }
 

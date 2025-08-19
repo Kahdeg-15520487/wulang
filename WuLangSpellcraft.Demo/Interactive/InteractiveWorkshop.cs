@@ -32,9 +32,10 @@ namespace WuLangSpellcraft.Demo.Interactive
                 Console.WriteLine("  3. Test element combinations");
                 Console.WriteLine("  4. Build artifact");
                 Console.WriteLine("  5. Stability testing lab");
-                Console.WriteLine("  6. Exit workshop");
+                Console.WriteLine("  6. Circle visualization workshop");
+                Console.WriteLine("  7. Exit workshop");
                 Console.WriteLine();
-                Console.Write("Choose an option (1-6): ");
+                Console.Write("Choose an option (1-7): ");
                 
                 var choice = Console.ReadLine();
                 Console.WriteLine();
@@ -57,10 +58,13 @@ namespace WuLangSpellcraft.Demo.Interactive
                         StabilityTestingLab.Run();
                         break;
                     case "6":
+                        CircleVisualizationWorkshop.Run();
+                        break;
+                    case "7":
                         Console.WriteLine("🎓 Thank you for using the Wu Lang Spellcraft Workshop!");
                         return;
                     default:
-                        Console.WriteLine("❌ Invalid option. Please choose 1-6.");
+                        Console.WriteLine("❌ Invalid option. Please choose 1-7.");
                         break;
                 }
                 

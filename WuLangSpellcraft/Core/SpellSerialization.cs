@@ -562,12 +562,12 @@ namespace WuLangSpellcraft.Core.Serialization
 
         public static ElementType GetElementType(char symbol)
         {
-            return _symbolToType.TryGetValue(symbol, out var type) ? type : ElementType.Fire;
+            return _symbolToType.TryGetValue(char.ToUpperInvariant(symbol), out var type) ? type : ElementType.Fire;
         }
 
         public static bool IsValidSymbol(char symbol)
         {
-            return _symbolToType.ContainsKey(symbol);
+            return _symbolToType.ContainsKey(char.ToUpperInvariant(symbol));
         }
     }
 
@@ -744,7 +744,7 @@ namespace WuLangSpellcraft.Core.Serialization
             // Expect: C<radius> <elements>
             var token = Current();
             
-            if (token.Type != CnfTokenType.Identifier || !token.Value.StartsWith("C"))
+            if (token.Type != CnfTokenType.Identifier || !token.Value.ToUpperInvariant().StartsWith("C"))
             {
                 throw new CnfException($"Expected circle definition 'C<radius>' at position {token.Position}", token.Position);
             }
@@ -785,16 +785,61 @@ namespace WuLangSpellcraft.Core.Serialization
                 return null;
             }
 
-            // Check if this is a compact format (multiple element symbols in one token)
+            // Check if this is a compact format like "F2.5W1.2L0.8"
+            if (token.Value.Length > 1)
+            {
+                // Look for element letters in the token
+                var elementPositions = new List<int>();
+                for (int i = 0; i < token.Value.Length; i++)
+                {
+                    if (ElementSymbols.IsValidSymbol(token.Value[i]))
+                    {
+                        elementPositions.Add(i);
+                    }
+                }
+
+                // If we have multiple elements in one token, split and requeue
+                if (elementPositions.Count > 1)
+                {
+                    var remainingTokens = new List<CnfToken>();
+                    
+                    for (int i = 0; i < elementPositions.Count; i++)
+                    {
+                        var start = elementPositions[i];
+                        var end = i + 1 < elementPositions.Count ? elementPositions[i + 1] : token.Value.Length;
+                        var elementPart = token.Value[start..end];
+                        
+                        remainingTokens.Add(new CnfToken(CnfTokenType.Identifier, elementPart, token.Position + start));
+                    }
+                    
+                    // Replace current token and insert remaining ones
+                    _tokens[_currentToken] = remainingTokens[0];
+                    for (int i = 1; i < remainingTokens.Count; i++)
+                    {
+                        _tokens.Insert(_currentToken + i, remainingTokens[i]);
+                    }
+                    
+                    // Re-parse with the first split token
+                    token = Current();
+                }
+            }
+
+            // Handle simple compact format (all element symbols, like "FWEMO")
             if (token.Value.Length > 1 && token.Value.All(ElementSymbols.IsValidSymbol))
             {
-                // This is compact format - we'll only parse the first element here
-                // The parser will be called again for subsequent elements
+                // This is simple compact format - parse first element and modify token
                 var firstSymbol = token.Value[0];
                 var elementType = ElementSymbols.GetElementType(firstSymbol);
                 
                 // Update the token to contain the remaining symbols
-                _tokens[_currentToken] = token with { Value = token.Value[1..] };
+                if (token.Value.Length > 1)
+                {
+                    _tokens[_currentToken] = token with { Value = token.Value[1..] };
+                }
+                else
+                {
+                    Advance();
+                }
                 
                 // Create element and talisman for first symbol
                 var element = new Element(elementType, 1.0);

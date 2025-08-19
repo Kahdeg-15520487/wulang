@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using WuLangSpellcraft.Core;
+using WuLangSpellcraft.Demo.Utilities;
 
 namespace WuLangSpellcraft.Demo.Demonstrations
 {
@@ -17,10 +18,21 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine(new string('═', 50));
             Console.WriteLine();
             
+            // Show legend first
+            CircleVisualizer.ShowLegend();
+            
             Console.WriteLine("🎯 Creating and Connecting Magic Circles:");
             Console.WriteLine();
             
             var (baseCircle, upperCircle) = CreateDemonstrationCircles();
+            
+            // Show visual representations
+            Console.WriteLine("📊 VISUAL REPRESENTATIONS:");
+            Console.WriteLine();
+            CircleVisualizer.RenderCircle(baseCircle, showPowerLevels: true);
+            Console.WriteLine();
+            CircleVisualizer.RenderCircle(upperCircle, showPowerLevels: true);
+            Console.WriteLine();
             
             ShowCircleDetails(baseCircle, upperCircle);
             ShowCircleConnections(baseCircle, upperCircle);

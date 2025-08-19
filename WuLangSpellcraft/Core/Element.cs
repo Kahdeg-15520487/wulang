@@ -35,6 +35,18 @@ namespace WuLangSpellcraft.Core
     }
 
     /// <summary>
+    /// Represents special states of elements in CNF notation
+    /// </summary>
+    public enum ElementState
+    {
+        Normal,     // Default state (no symbol)
+        Active,     // * = active/charged element
+        Unstable,   // ? = unstable element  
+        Damaged,    // ! = damaged element
+        Resonating  // ~ = resonating element
+    }
+
+    /// <summary>
     /// Core element class representing a single elemental force
     /// </summary>
     public class Element
@@ -45,12 +57,14 @@ namespace WuLangSpellcraft.Core
         public ConsoleColor Color { get; }
         public double Energy { get; set; }
         public bool IsActive { get; set; }
+        public ElementState State { get; set; }
 
-        public Element(ElementType type, double energy = 1.0)
+        public Element(ElementType type, double energy = 1.0, ElementState state = ElementState.Normal)
         {
             Type = type;
             Energy = energy;
             IsActive = true;
+            State = state;
             
             (Name, ChineseName, Color) = type switch
             {

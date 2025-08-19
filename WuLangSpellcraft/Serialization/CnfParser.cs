@@ -58,11 +58,25 @@ namespace WuLangSpellcraft.Serialization
                         yield return new CnfToken(CnfTokenType.At, "@", position++);
                         break;
                     case '=':
-                        yield return new CnfToken(CnfTokenType.Equals, "=", position++);
+                        // Check for double equals (==)
+                        if (position + 1 < input.Length && input[position + 1] == '=')
+                        {
+                            yield return new CnfToken(CnfTokenType.DoubleEquals, "==", position);
+                            position += 2;
+                        }
+                        else
+                        {
+                            yield return new CnfToken(CnfTokenType.Equals, "=", position++);
+                        }
                         break;
                     case '~':
-                        // Check for unstable connection (~=)
-                        if (position + 1 < input.Length && input[position + 1] == '=')
+                        // Check for double tilde (~~) or unstable connection (~=)
+                        if (position + 1 < input.Length && input[position + 1] == '~')
+                        {
+                            yield return new CnfToken(CnfTokenType.DoubleTilde, "~~", position);
+                            position += 2;
+                        }
+                        else if (position + 1 < input.Length && input[position + 1] == '=')
                         {
                             yield return new CnfToken(CnfTokenType.TildeEquals, "~=", position);
                             position += 2;
@@ -85,8 +99,13 @@ namespace WuLangSpellcraft.Serialization
                         yield return new CnfToken(CnfTokenType.Exclamation, "!", position++);
                         break;
                     case '-':
-                        // Check for arrow (->)
-                        if (position + 1 < input.Length && input[position + 1] == '>')
+                        // Check for double minus (--) or arrow (->)
+                        if (position + 1 < input.Length && input[position + 1] == '-')
+                        {
+                            yield return new CnfToken(CnfTokenType.DoubleMinus, "--", position);
+                            position += 2;
+                        }
+                        else if (position + 1 < input.Length && input[position + 1] == '>')
                         {
                             yield return new CnfToken(CnfTokenType.Arrow, "->", position);
                             position += 2;
@@ -279,6 +298,7 @@ namespace WuLangSpellcraft.Serialization
 
             var elementTypeRegular = ElementSymbols.GetElementType(elementSymbol);
             var powerLevel = 1.0;
+            var elementState = ElementState.Normal;
             string? talismanId = null;
 
             // Check if there's a power level in the same token (e.g., "F2.5")
@@ -294,6 +314,29 @@ namespace WuLangSpellcraft.Serialization
             }
 
             Advance(); // Move past element token
+
+            // Check for element state symbols (*, ?, !, ~)
+            if (Current().Type == CnfTokenType.Star)
+            {
+                elementState = ElementState.Active;
+                Advance();
+            }
+            else if (Current().Type == CnfTokenType.Question)
+            {
+                elementState = ElementState.Unstable;
+                Advance();
+            }
+            else if (Current().Type == CnfTokenType.Exclamation)
+            {
+                elementState = ElementState.Damaged;
+                Advance();
+            }
+            else if (Current().Type == CnfTokenType.Tilde)
+            {
+                // In single circle parsing, ~ immediately after an element is always an element state
+                elementState = ElementState.Resonating;
+                Advance();
+            }
 
             // Check for power level as separate number token
             if (Current().Type == CnfTokenType.Number)
@@ -322,7 +365,7 @@ namespace WuLangSpellcraft.Serialization
             }
 
             // Create element and talisman
-            var elementRegular = new Element(elementTypeRegular, powerLevel);
+            var elementRegular = new Element(elementTypeRegular, powerLevel, elementState);
             var talismanName = talismanId ?? $"Talisman {elementTypeRegular}";
             var talismanRegular = new Talisman(elementRegular, talismanName);
 
@@ -359,9 +402,10 @@ namespace WuLangSpellcraft.Serialization
             if (string.IsNullOrWhiteSpace(cnf))
                 return false;
 
-            // Look for bracket syntax [id:circle] or connection symbols
+            // Look for bracket syntax [id:circle] or 2-character connection symbols
             bool hasBrackets = cnf.Contains('[') && cnf.Contains(']');
-            bool hasConnections = cnf.Contains('-') || cnf.Contains('=') || cnf.Contains('~');
+            bool hasConnections = cnf.Contains("--") || cnf.Contains("==") || cnf.Contains("~~") || 
+                                 cnf.Contains("~=") || cnf.Contains("->") || cnf.Contains("<->");
             
             return hasBrackets || hasConnections;
         }
@@ -474,11 +518,44 @@ namespace WuLangSpellcraft.Serialization
             Advance(); // Skip ]
 
             // Parse the circle from collected tokens
-            var circleText = string.Join(" ", circleTokens.Select(t => t.Value));
+            var circleText = ReconstructCircleText(circleTokens);
             var parser = new CnfParser();
             var circle = parser.ParseCircle(circleText);
 
             return (circleId, circle);
+        }
+
+        private string ReconstructCircleText(List<CnfToken> tokens)
+        {
+            var result = new List<string>();
+            
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                
+                // Check if this is an element symbol followed by a state symbol
+                if (token.Type == CnfTokenType.Identifier && 
+                    token.Value.Length == 1 && 
+                    ElementSymbols.IsValidSymbol(token.Value[0]) &&
+                    i + 1 < tokens.Count)
+                {
+                    var nextToken = tokens[i + 1];
+                    if (nextToken.Type == CnfTokenType.Star || 
+                        nextToken.Type == CnfTokenType.Question || 
+                        nextToken.Type == CnfTokenType.Exclamation || 
+                        nextToken.Type == CnfTokenType.Tilde)
+                    {
+                        // Combine element and state
+                        result.Add(token.Value + nextToken.Value);
+                        i++; // Skip the next token since we've consumed it
+                        continue;
+                    }
+                }
+                
+                result.Add(token.Value);
+            }
+            
+            return string.Join(" ", result);
         }
 
         private bool IsSimpleCircle()
@@ -505,12 +582,12 @@ namespace WuLangSpellcraft.Serialization
 
         private bool IsConnectionToken(CnfToken token)
         {
-            return token.Type == CnfTokenType.Minus || 
-                   token.Type == CnfTokenType.Equals || 
-                   token.Type == CnfTokenType.Tilde ||
-                   token.Type == CnfTokenType.TildeEquals ||
-                   token.Type == CnfTokenType.Arrow ||
-                   token.Type == CnfTokenType.DoubleArrow;
+            return token.Type == CnfTokenType.DoubleMinus ||    // --
+                   token.Type == CnfTokenType.DoubleEquals ||   // ==
+                   token.Type == CnfTokenType.DoubleTilde ||    // ~~
+                   token.Type == CnfTokenType.TildeEquals ||    // ~=
+                   token.Type == CnfTokenType.Arrow ||          // ->
+                   token.Type == CnfTokenType.DoubleArrow;      // <->
         }
 
         private bool IsConnectionStart()
@@ -563,12 +640,12 @@ namespace WuLangSpellcraft.Serialization
             
             return token.Type switch
             {
-                CnfTokenType.Minus => ConnectionType.Basic,          // - = basic connection (simple energy flow)
-                CnfTokenType.Equals => ConnectionType.Strong,        // = = strong connection (amplified energy flow)
-                CnfTokenType.Tilde => ConnectionType.Harmonic,       // ~ = harmonic connection (resonant frequency)
-                CnfTokenType.TildeEquals => ConnectionType.Unstable, // ~= = unstable connection (fluctuating energy)
-                CnfTokenType.Arrow => ConnectionType.Directional,    // -> = directional flow (one-way)
-                CnfTokenType.DoubleArrow => ConnectionType.Bidirectional, // <-> = bidirectional flow (two-way)
+                CnfTokenType.DoubleMinus => ConnectionType.Basic,          // -- = basic connection (simple energy flow)
+                CnfTokenType.DoubleEquals => ConnectionType.Strong,        // == = strong connection (amplified energy flow)
+                CnfTokenType.DoubleTilde => ConnectionType.Harmonic,       // ~~ = harmonic connection (resonant frequency)
+                CnfTokenType.TildeEquals => ConnectionType.Unstable,       // ~= = unstable connection (fluctuating energy)
+                CnfTokenType.Arrow => ConnectionType.Directional,          // -> = directional flow (one-way)
+                CnfTokenType.DoubleArrow => ConnectionType.Bidirectional,  // <-> = bidirectional flow (two-way)
                 _ => throw new CnfException($"Invalid connection type '{token.Value}' at position {token.Position}", token.Position)
             };
         }

@@ -119,9 +119,9 @@ C3 FWE                                         # Auto-generated IDs (anonymous)
 
 Connections between circles use specific symbols:
 
-- `-` - Basic connection (simple energy flow)
-- `=` - Strong connection (amplified energy flow)
-- `~` - Harmonic connection (resonant frequency)
+- `--` - Basic connection (simple energy flow)
+- `==` - Strong connection (amplified energy flow)
+- `~~` - Harmonic connection (resonant frequency)
 - `~=` - Unstable connection (fluctuating energy)
 - `->` - Directional flow (one-way)
 - `<->` - Bidirectional flow (two-way)
@@ -142,8 +142,8 @@ For formations with multiple circles, use the bracket syntax with circle IDs:
 
 **Examples:**
 ```
-[main:C3 FWE] [support:C2 MW] main-support
-[core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core=boost core~balance
+[main:C3 FWE] [support:C2 MW] main--support
+[core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core==boost core~~balance
 [alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha->beta beta<->gamma
 ```
 
@@ -172,20 +172,20 @@ C2 FW@E|C4 MLOG         # Two layers with center element
 
 #### Triangle Formation
 ```
-[alpha:C3 FWE] [beta:C3 MLD] [gamma:C3 OGC] alpha-beta beta-gamma gamma-alpha
+[alpha:C3 FWE] [beta:C3 MLD] [gamma:C3 OGC] alpha--beta beta--gamma gamma--alpha
 ```
 
 #### Star Formation with Hub
 ```
 [hub:C1 C] [point1:C2 F] [point2:C2 W] [point3:C2 E] [point4:C2 M] [point5:C2 O]
-hub=point1 hub=point2 hub=point3 hub=point4 hub=point5
+hub==point1 hub==point2 hub==point3 hub==point4 hub==point5
 ```
 
 #### Grid Formation (3x3)
 ```
 [nw:C1 F] [n:C1 W] [ne:C1 E] [w:C1 M] [center:C1 O] [e:C1 L] [sw:C1 G] [s:C1 D] [se:C1 C]
-nw-n n-ne w-center center-e sw-s s-se
-nw-w n-center ne-e w-sw center-s e-se
+nw--n n--ne w--center center--e sw--s s--se
+nw--w n--center ne--e w--sw center--s e--se
 ```
 
 ### Positional Information (Optional)
@@ -196,7 +196,7 @@ nw-w n-center ne-e w-sw center-s e-se
 C3 FWE(0,0,0)           # Circle at origin
 [main:C3 FWE(5,0,2)]    # Circle with ID at position (5,0,2)
 [support:C3 FWE(10,-3,1)] # Circle with ID at position (10,-3,1)
-main-support             # Connection between positioned circles
+main--support             # Connection between positioned circles
 ```
 
 ## Pattern Libraries
@@ -268,7 +268,7 @@ C7 F3W2E*4          # Four repetitions of Fire3-Water2-Earth sequence
 
 **CNF:**
 ```
-[main:C3 FWE] [support:C4 MLGO] [boost:C2 FW] main-support support=boost
+[main:C3 FWE] [support:C4 MLGO] [boost:C2 FW] main--support support==boost
 ```
 
 **JSON Equivalent:**
@@ -357,24 +357,24 @@ public void TestFireWaterInteraction()
 ```
 # spell_library.cnf
 ward_basic=P5[C3 FWEMO]
-amplifier_simple=[C1 F3] = [C5 WEMO@C] = [C1 W3]
-chaos_seal=[C2 V] ~ [C6 CEMOGD] ~ [C2 V]
+amplifier_simple=[C1 F3] == [C5 WEMO@C] == [C1 W3]
+chaos_seal=[C2 V] ~~ [C6 CEMOGD] ~~ [C2 V]
 ```
 
 ### 4. Interactive Design
 ```
-> create [C3 FWE] - [C4 MLGO]
+> create [C3 FWE] -- [C4 MLGO]
 Created formation with 2 circles, 1 connection
-> connect last = [C2 FW]  
+> connect last == [C2 FW]  
 Added strong connection to new circle
 > show
-[C3 FWE] - [C4 MLGO] = [C2 FW]
+[C3 FWE] -- [C4 MLGO] == [C2 FW]
 ```
 
 ### 5. Version Control
 ```diff
-- stability_ward=[C3 EEE] = [C3 WWW] = [C3 EEE]
-+ stability_ward=[C3 E2E2E2] = [C3 W3W3W3] = [C3 E2E2E2]
+- stability_ward=[C3 E2E2E2] == [C3 W3W3W3] == [C3 E2E2E2]
++ stability_ward=[C3 E2E2E2] == [C3 W3W3W3] == [C3 E2E2E2]
 ```
 
 ### Working Examples (Tested Implementation)

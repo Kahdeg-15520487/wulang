@@ -239,7 +239,8 @@ namespace WuLangSpellcraft
                 {
                     Console.WriteLine("🎯 Center Talisman:");
                     Console.WriteLine($"  Name: {circle.CenterTalisman.Name}");
-                    Console.WriteLine($"  Element: {circle.CenterTalisman.PrimaryElement}");
+                    var centerElementDisplay = GetElementDisplay(circle.CenterTalisman.PrimaryElement);
+                    Console.WriteLine($"  Element: {centerElementDisplay}");
                     Console.WriteLine($"  Power Level: {circle.CenterTalisman.PowerLevel}");
                     Console.WriteLine();
                 }
@@ -250,7 +251,8 @@ namespace WuLangSpellcraft
                     for (int i = 0; i < circle.Talismans.Count; i++)
                     {
                         var talisman = circle.Talismans[i];
-                        Console.WriteLine($"  {i + 1}. {talisman.Name} ({talisman.PrimaryElement}) - Power: {talisman.PowerLevel}");
+                        var elementDisplay = GetElementDisplay(talisman.PrimaryElement);
+                        Console.WriteLine($"  {i + 1}. {talisman.Name} ({elementDisplay}) - Power: {talisman.PowerLevel}");
                     }
                     Console.WriteLine();
                 }
@@ -292,7 +294,8 @@ namespace WuLangSpellcraft
                     
                     if (circle.Talismans.Any())
                     {
-                        Console.WriteLine($"    Elements: {string.Join(", ", circle.Talismans.Select(t => t.PrimaryElement.ToString()))}");
+                        var elementsDisplay = string.Join(", ", circle.Talismans.Select(t => GetElementDisplay(t.PrimaryElement)));
+                        Console.WriteLine($"    Elements: {elementsDisplay}");
                     }
                     Console.WriteLine();
                 }
@@ -448,14 +451,28 @@ namespace WuLangSpellcraft
         {
             return connection.Type switch
             {
-                ConnectionType.Basic => $"{connection.SourceId} --Basic--> {connection.TargetId} (Strength: {connection.Strength:F2})",
-                ConnectionType.Strong => $"{connection.SourceId} ==Strong==> {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Basic => $"{connection.SourceId} --Basic-- {connection.TargetId} (Strength: {connection.Strength:F2})",
+                ConnectionType.Strong => $"{connection.SourceId} ==Strong== {connection.TargetId} (Strength: {connection.Strength:F2})",
                 ConnectionType.Harmonic => $"{connection.SourceId} ~~Harmonic~~ {connection.TargetId} (Strength: {connection.Strength:F2})",
                 ConnectionType.Unstable => $"{connection.SourceId} ~=Unstable=~ {connection.TargetId} (Strength: {connection.Strength:F2})",
                 ConnectionType.Directional => $"{connection.SourceId} -->Directional--> {connection.TargetId} (Strength: {connection.Strength:F2})",
                 ConnectionType.Bidirectional => $"{connection.SourceId} <--Bidirectional--> {connection.TargetId} (Strength: {connection.Strength:F2})",
-                _ => $"{connection.SourceId} --{connection.Type}--> {connection.TargetId} (Strength: {connection.Strength:F2})"
+                _ => $"{connection.SourceId} --{connection.Type}-- {connection.TargetId} (Strength: {connection.Strength:F2})"
             };
+        }
+
+        private static string GetElementDisplay(Element element)
+        {
+            var stateSymbol = element.State switch
+            {
+                ElementState.Active => "*",
+                ElementState.Unstable => "?",
+                ElementState.Damaged => "!",
+                ElementState.Resonating => "~",
+                _ => ""
+            };
+
+            return $"{element.ChineseName} {element.Name}{stateSymbol} (Energy: {element.Energy})";
         }
     }
 }

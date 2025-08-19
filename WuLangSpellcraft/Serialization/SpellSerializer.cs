@@ -212,6 +212,20 @@ namespace WuLangSpellcraft.Serialization
                 result.Append(talisman.PrimaryElement.Energy.ToString("0.##", CultureInfo.InvariantCulture));
             }
             
+            // Add element state symbol if not normal
+            if (talisman.PrimaryElement.State != ElementState.Normal)
+            {
+                var stateSymbol = talisman.PrimaryElement.State switch
+                {
+                    ElementState.Active => "*",
+                    ElementState.Unstable => "?",
+                    ElementState.Damaged => "!",
+                    ElementState.Resonating => "~",
+                    _ => ""
+                };
+                result.Append(stateSymbol);
+            }
+            
             // Add talisman ID if option is enabled and talisman has a meaningful name
             if (options.IncludeTalismanIds && !string.IsNullOrEmpty(talisman.Name))
             {

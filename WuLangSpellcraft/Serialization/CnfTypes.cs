@@ -87,11 +87,14 @@ namespace WuLangSpellcraft.Serialization
         DoubleArrow,    // <->
         RightArrow,     // →
         DoubleRightArrow, // ↔
-        Equals,         // =
-        Tilde,          // ~
-        TildeEquals,    // ~=
+        Equals,         // = (single, for legacy)
+        DoubleEquals,   // == (double, for connections)
+        Tilde,          // ~ (single, for element states)
+        DoubleTilde,    // ~~ (double, for harmonic connections)
+        TildeEquals,    // ~= (unstable connections)
         Plus,           // +
-        Minus,          // -
+        Minus,          // - (single, for legacy)
+        DoubleMinus,    // -- (double, for connections)
         Star,           // * (for element states)
         Question,       // ? (for element states)
         Exclamation,    // ! (for element states)

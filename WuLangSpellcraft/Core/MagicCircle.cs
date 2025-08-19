@@ -12,6 +12,10 @@ namespace WuLangSpellcraft.Core
         public string Id { get; }
         public string Name { get; set; }
         public List<Talisman> Talismans { get; }
+        
+        // Center talisman support (for @element syntax in CNF)
+        public Talisman? CenterTalisman { get; set; }
+        
         public double Radius { get; set; }
         public double CenterX { get; set; }
         public double CenterY { get; set; }
@@ -132,6 +136,30 @@ namespace WuLangSpellcraft.Core
         }
 
         /// <summary>
+        /// Sets the center talisman for this circle
+        /// </summary>
+        public void SetCenterTalisman(Talisman talisman)
+        {
+            CenterTalisman = talisman;
+            
+            // Position center talisman at the circle's center
+            talisman.X = CenterX;
+            talisman.Y = CenterY;
+            talisman.Z = Layer;
+            
+            RecalculateProperties();
+        }
+
+        /// <summary>
+        /// Removes the center talisman from this circle
+        /// </summary>
+        public void RemoveCenterTalisman()
+        {
+            CenterTalisman = null;
+            RecalculateProperties();
+        }
+
+        /// <summary>
         /// Creates a connection to another magic circle
         /// </summary>
         public CircleConnection ConnectTo(MagicCircle targetCircle, ConnectionType connectionType)
@@ -210,7 +238,13 @@ namespace WuLangSpellcraft.Core
 
         private void RecalculateProperties()
         {
-            if (Talismans.Count == 0)
+            var allTalismans = new List<Talisman>(Talismans);
+            if (CenterTalisman != null)
+            {
+                allTalismans.Add(CenterTalisman);
+            }
+            
+            if (allTalismans.Count == 0)
             {
                 PowerOutput = 0;
                 Stability = 1.0;
@@ -219,8 +253,8 @@ namespace WuLangSpellcraft.Core
                 return;
             }
 
-            // Calculate total power
-            PowerOutput = Talismans.Sum(t => t.PowerLevel);
+            // Calculate total power (including center talisman)
+            PowerOutput = allTalismans.Sum(t => t.PowerLevel);
 
             // Calculate stability based on elemental balance and interactions
             var interactions = GetTalismanInteractions();
@@ -228,7 +262,7 @@ namespace WuLangSpellcraft.Core
             var totalInteractions = Math.Max(1, interactions.Count);
             
             var interactionStability = (double)stableInteractions / totalInteractions;
-            var averageTalismanStability = Talismans.Average(t => t.Stability);
+            var averageTalismanStability = allTalismans.Average(t => t.Stability);
             
             Stability = (interactionStability + averageTalismanStability) / 2;
 

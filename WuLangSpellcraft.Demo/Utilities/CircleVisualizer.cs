@@ -185,10 +185,44 @@ namespace WuLangSpellcraft.Demo.Utilities
                 }
             }
             
-            // Mark center
+            // Mark center - either with center talisman or just center mark
             if (centerX >= 0 && centerX < gridSize && centerY >= 0 && centerY < gridSize)
             {
-                grid[centerY, centerX] = '◦';
+                if (circle.CenterTalisman != null)
+                {
+                    // Place center talisman symbol
+                    var centerSymbol = ElementSymbols.GetSymbol(circle.CenterTalisman.PrimaryElement.Type);
+                    grid[centerY, centerX] = centerSymbol;
+                    
+                    // Add power level indicator if requested and power is non-standard
+                    if (showPowerLevels && Math.Abs(circle.CenterTalisman.PrimaryElement.Energy - 1.0) > 0.1)
+                    {
+                        var powerIndicator = GetPowerIndicator(circle.CenterTalisman.PrimaryElement.Energy);
+                        // Try to place power indicator around the center talisman
+                        var placed = false;
+                        
+                        // Try positions in order: right, below, left, above, diagonals
+                        var offsets = new[] { (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1) };
+                        
+                        foreach (var (dx, dy) in offsets)
+                        {
+                            var px = centerX + dx;
+                            var py = centerY + dy;
+                            if (px >= 0 && px < gridSize && py >= 0 && py < gridSize && 
+                                grid[py, px] == ' ')
+                            {
+                                grid[py, px] = powerIndicator;
+                                placed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // No center talisman, just mark the center
+                    grid[centerY, centerX] = '◦';
+                }
             }
         }
 

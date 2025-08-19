@@ -113,13 +113,26 @@ namespace WuLangSpellcraft.Core.Serialization
             // Start with circle definition: C<radius>
             result.Append($"C{circle.Radius}");
             
-            // Add space before elements if we have any
-            if (circle.Talismans.Any())
+            // Add space before talismans if we have any
+            if (circle.CenterTalisman != null || circle.Talismans.Any())
             {
                 result.Append(" ");
             }
             
-            // Serialize each talisman
+            // Serialize center talisman first if it exists
+            if (circle.CenterTalisman != null)
+            {
+                result.Append(" @center ");
+                result.Append(SerializeTalismanToCnf(circle.CenterTalisman, options));
+                
+                // Add space before ring talismans if we have any
+                if (circle.Talismans.Any())
+                {
+                    result.Append(" ");
+                }
+            }
+            
+            // Serialize each ring talisman
             for (int i = 0; i < circle.Talismans.Count; i++)
             {
                 var talisman = circle.Talismans[i];
@@ -143,6 +156,24 @@ namespace WuLangSpellcraft.Core.Serialization
         {
             var parser = new CnfParser();
             return parser.ParseCircle(cnf);
+        }
+
+        /// <summary>
+        /// Deserializes a spell formation (multi-circle) from Circle Notation Format (CNF)
+        /// </summary>
+        public static SpellFormation DeserializeFormationFromCnf(string cnf)
+        {
+            var parser = new MultiCircleCnfParser();
+            return parser.ParseFormation(cnf);
+        }
+
+        /// <summary>
+        /// Detects whether CNF contains single circle or multi-circle formation
+        /// </summary>
+        public static bool IsMultiCircleCnf(string cnf)
+        {
+            var multiParser = new MultiCircleCnfParser();
+            return multiParser.IsMultiCircleFormat(cnf);
         }
 
         /// <summary>
@@ -295,6 +326,7 @@ namespace WuLangSpellcraft.Core.Serialization
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public List<TalismanData> Talismans { get; set; } = new();
+        public TalismanData? CenterTalisman { get; set; }
         public double Radius { get; set; }
         public double CenterX { get; set; }
         public double CenterY { get; set; }
@@ -308,6 +340,7 @@ namespace WuLangSpellcraft.Core.Serialization
             Id = circle.Id;
             Name = circle.Name;
             Talismans = circle.Talismans.Select(t => new TalismanData(t)).ToList();
+            CenterTalisman = circle.CenterTalisman != null ? new TalismanData(circle.CenterTalisman) : null;
             Radius = circle.Radius;
             CenterX = circle.CenterX;
             CenterY = circle.CenterY;
@@ -332,6 +365,13 @@ namespace WuLangSpellcraft.Core.Serialization
                 // Position is already set in ToTalisman(), just add to circle
                 var angle = Math.Atan2(talisman.Y - CenterY, talisman.X - CenterX);
                 circle.AddTalisman(talisman, angle);
+            }
+
+            // Add center talisman if present
+            if (CenterTalisman != null)
+            {
+                var centerTalisman = CenterTalisman.ToTalisman();
+                circle.SetCenterTalisman(centerTalisman);
             }
 
             return circle;
@@ -557,14 +597,27 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public enum CnfTokenType
     {
-        Identifier,     // Element symbols (F, W, E, etc.), talisman IDs
+        Identifier,     // Element symbols (F, W, E, etc.), talisman IDs, circle IDs
         Number,         // Numbers for positions, strengths, power levels
         Colon,          // :
         Semicolon,      // ;
         LeftParen,      // (
         RightParen,     // )
+        LeftBracket,    // [
+        RightBracket,   // ]
+        LeftBrace,      // {
+        RightBrace,     // }
         Comma,          // ,
+        At,             // @
+        Arrow,          // ->
+        DoubleArrow,    // <->
         Equals,         // =
+        Tilde,          // ~
+        Plus,           // +
+        Minus,          // -
+        Star,           // * (for element states)
+        Question,       // ? (for element states)
+        Exclamation,    // ! (for element states)
         EOF
     }
 
@@ -606,11 +659,65 @@ namespace WuLangSpellcraft.Core.Serialization
                     case ')':
                         yield return new CnfToken(CnfTokenType.RightParen, ")", position++);
                         break;
+                    case '[':
+                        yield return new CnfToken(CnfTokenType.LeftBracket, "[", position++);
+                        break;
+                    case ']':
+                        yield return new CnfToken(CnfTokenType.RightBracket, "]", position++);
+                        break;
+                    case '{':
+                        yield return new CnfToken(CnfTokenType.LeftBrace, "{", position++);
+                        break;
+                    case '}':
+                        yield return new CnfToken(CnfTokenType.RightBrace, "}", position++);
+                        break;
                     case ',':
                         yield return new CnfToken(CnfTokenType.Comma, ",", position++);
                         break;
+                    case '@':
+                        yield return new CnfToken(CnfTokenType.At, "@", position++);
+                        break;
                     case '=':
                         yield return new CnfToken(CnfTokenType.Equals, "=", position++);
+                        break;
+                    case '~':
+                        yield return new CnfToken(CnfTokenType.Tilde, "~", position++);
+                        break;
+                    case '+':
+                        yield return new CnfToken(CnfTokenType.Plus, "+", position++);
+                        break;
+                    case '*':
+                        yield return new CnfToken(CnfTokenType.Star, "*", position++);
+                        break;
+                    case '?':
+                        yield return new CnfToken(CnfTokenType.Question, "?", position++);
+                        break;
+                    case '!':
+                        yield return new CnfToken(CnfTokenType.Exclamation, "!", position++);
+                        break;
+                    case '-':
+                        // Check for arrow (->)
+                        if (position + 1 < input.Length && input[position + 1] == '>')
+                        {
+                            yield return new CnfToken(CnfTokenType.Arrow, "->", position);
+                            position += 2;
+                        }
+                        else
+                        {
+                            yield return new CnfToken(CnfTokenType.Minus, "-", position++);
+                        }
+                        break;
+                    case '<':
+                        // Check for double arrow (<->)
+                        if (position + 2 < input.Length && input[position + 1] == '-' && input[position + 2] == '>')
+                        {
+                            yield return new CnfToken(CnfTokenType.DoubleArrow, "<->", position);
+                            position += 3;
+                        }
+                        else
+                        {
+                            throw new CnfException($"Unexpected character '{current}' at position {position}", position);
+                        }
                         break;
                     default:
                         if (char.IsDigit(current) || current == '.')
@@ -656,7 +763,7 @@ namespace WuLangSpellcraft.Core.Serialization
 
         private MagicCircle ParseCircleDefinition()
         {
-            // Expect: C<radius> <elements>
+            // Expect: C<radius> <elements>[@<center>]
             var token = Current();
             
             if (token.Type != CnfTokenType.Identifier || !token.Value.ToUpperInvariant().StartsWith("C"))
@@ -677,7 +784,7 @@ namespace WuLangSpellcraft.Core.Serialization
             var circle = new MagicCircle($"Circle R{radius}", radius);
 
             // Parse elements
-            while (Current().Type != CnfTokenType.EOF)
+            while (Current().Type != CnfTokenType.EOF && Current().Type != CnfTokenType.At)
             {
                 var talisman = ParseTalisman();
                 if (talisman != null)
@@ -685,6 +792,17 @@ namespace WuLangSpellcraft.Core.Serialization
                     // Calculate position angle based on talisman index
                     var angle = (2 * Math.PI * circle.Talismans.Count) / 8; // Assume 8 positions for now
                     circle.AddTalisman(talisman, angle);
+                }
+            }
+
+            // Check for center element (@symbol)
+            if (Current().Type == CnfTokenType.At)
+            {
+                Advance(); // Skip @
+                var centerTalisman = ParseTalisman();
+                if (centerTalisman != null)
+                {
+                    circle.SetCenterTalisman(centerTalisman);
                 }
             }
 
@@ -834,6 +952,338 @@ namespace WuLangSpellcraft.Core.Serialization
                 _currentToken++;
             }
         }
+    }
+
+    /// <summary>
+    /// Enhanced parser for multi-circle CNF with ID-based connections
+    /// </summary>
+    public class MultiCircleCnfParser
+    {
+        private List<CnfToken> _tokens = new();
+        private int _currentToken = 0;
+
+        /// <summary>
+        /// Detects if CNF string contains multi-circle formation markers
+        /// </summary>
+        public bool IsMultiCircleFormat(string cnf)
+        {
+            if (string.IsNullOrWhiteSpace(cnf))
+                return false;
+
+            var lexer = new CnfLexer();
+            var tokens = lexer.Tokenize(cnf).ToList();
+            
+            // Look for formation markers: circle IDs (id:), connections (~), or multiple circle definitions
+            bool hasCircleId = false;
+            bool hasConnection = false;
+            int circleCount = 0;
+            
+            foreach (var token in tokens)
+            {
+                if (token.Type == CnfTokenType.Identifier && token.Value.Contains(':'))
+                {
+                    hasCircleId = true;
+                }
+                else if (token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.Arrow)
+                {
+                    hasConnection = true;
+                }
+                else if (token.Type == CnfTokenType.Identifier && token.Value.StartsWith('C') && char.IsDigit(token.Value.Length > 1 ? token.Value[1] : '\0'))
+                {
+                    circleCount++;
+                }
+            }
+
+            // Multi-circle if we have circle IDs, connections, or multiple circles
+            return hasCircleId || hasConnection || circleCount > 1;
+        }
+
+        public SpellFormation ParseFormation(string cnf)
+        {
+            var lexer = new CnfLexer();
+            _tokens = lexer.Tokenize(cnf).ToList();
+            _currentToken = 0;
+
+            var formation = new SpellFormation();
+            
+            // Parse circle definitions and connections
+            while (Current().Type != CnfTokenType.EOF)
+            {
+                if (IsCircleDefinition())
+                {
+                    var (circleId, circle) = ParseCircleWithId();
+                    formation.AddCircle(circleId, circle);
+                }
+                else if (IsConnectionDefinition())
+                {
+                    var connection = ParseConnection();
+                    formation.AddConnection(connection);
+                }
+                else
+                {
+                    throw new CnfException($"Unexpected token '{Current().Value}' at position {Current().Position}", Current().Position);
+                }
+            }
+
+            return formation;
+        }
+
+        private bool IsCircleDefinition()
+        {
+            var current = Current();
+            
+            // Check for "circleId: C..." pattern
+            if (current.Type == CnfTokenType.Identifier && 
+                _currentToken + 1 < _tokens.Count &&
+                _tokens[_currentToken + 1].Type == CnfTokenType.Colon &&
+                _currentToken + 2 < _tokens.Count &&
+                _tokens[_currentToken + 2].Type == CnfTokenType.Identifier &&
+                _tokens[_currentToken + 2].Value.ToUpperInvariant().StartsWith("C"))
+            {
+                return true;
+            }
+            
+            // Check for direct "C..." pattern
+            return current.Type == CnfTokenType.Identifier && current.Value.ToUpperInvariant().StartsWith("C");
+        }
+
+        private bool IsConnectionDefinition()
+        {
+            // Look for patterns like "id -> id" or "id = id"
+            var current = Current();
+            if (current.Type == CnfTokenType.Identifier)
+            {
+                for (int i = _currentToken + 1; i < _tokens.Count && i < _currentToken + 5; i++)
+                {
+                    var token = _tokens[i];
+                    if (token.Type == CnfTokenType.Arrow || token.Type == CnfTokenType.Equals || 
+                        token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.DoubleArrow)
+                    {
+                        return true;
+                    }
+                    if (token.Type == CnfTokenType.EOF || token.Type == CnfTokenType.Identifier && 
+                        token.Value.ToUpperInvariant().StartsWith("C"))
+                    {
+                        break;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private (string id, MagicCircle circle) ParseCircleWithId()
+        {
+            string circleId;
+            
+            // Check if we have an explicit ID
+            if (Current().Type == CnfTokenType.Identifier && 
+                _currentToken + 1 < _tokens.Count &&
+                _tokens[_currentToken + 1].Type == CnfTokenType.Colon)
+            {
+                circleId = Current().Value;
+                Advance(); // Skip ID
+                Advance(); // Skip colon
+            }
+            else
+            {
+                circleId = Utilities.GenerateShortId(); // Auto-generate ID
+            }
+            
+            var parser = new CnfParser();
+            var remainingTokens = _tokens.Skip(_currentToken).ToList();
+            var cnf = string.Join(" ", remainingTokens.TakeWhile(t => !IsConnectionStart(t)).Select(t => t.Value));
+            
+            var circle = parser.ParseCircle(cnf);
+            
+            // Advance past the circle definition
+            while (Current().Type != CnfTokenType.EOF && !IsConnectionStart(Current()) && !IsCircleDefinition())
+            {
+                Advance();
+            }
+            
+            return (circleId, circle);
+        }
+
+        private bool IsConnectionStart(CnfToken token)
+        {
+            return token.Type == CnfTokenType.Arrow || token.Type == CnfTokenType.Equals || 
+                   token.Type == CnfTokenType.Tilde || token.Type == CnfTokenType.DoubleArrow;
+        }
+
+        private FormationConnection ParseConnection()
+        {
+            var sourceId = Current().Value;
+            if (Current().Type != CnfTokenType.Identifier)
+            {
+                throw new CnfException($"Expected source ID at position {Current().Position}", Current().Position);
+            }
+            Advance();
+
+            // Parse connection type and optional strength
+            var connectionType = ParseConnectionType();
+            double strength = 1.0;
+            
+            // Check for strength specification {value}
+            if (Current().Type == CnfTokenType.LeftBrace)
+            {
+                Advance(); // Skip {
+                if (Current().Type == CnfTokenType.Number)
+                {
+                    double.TryParse(Current().Value, NumberStyles.Float, CultureInfo.InvariantCulture, out strength);
+                    Advance(); // Skip number
+                }
+                if (Current().Type == CnfTokenType.RightBrace)
+                {
+                    Advance(); // Skip }
+                }
+            }
+
+            var targetId = Current().Value;
+            if (Current().Type != CnfTokenType.Identifier)
+            {
+                throw new CnfException($"Expected target ID at position {Current().Position}", Current().Position);
+            }
+            Advance();
+
+            return new FormationConnection
+            {
+                SourceId = sourceId,
+                TargetId = targetId,
+                Type = connectionType,
+                Strength = strength
+            };
+        }
+
+        private ConnectionType ParseConnectionType()
+        {
+            var token = Current();
+            Advance();
+            
+            return token.Type switch
+            {
+                CnfTokenType.Arrow => ConnectionType.Direct,
+                CnfTokenType.Equals => ConnectionType.Resonance,
+                CnfTokenType.Tilde => ConnectionType.Flow,
+                CnfTokenType.DoubleArrow => ConnectionType.Flow, // Bidirectional flow
+                _ => throw new CnfException($"Invalid connection type '{token.Value}' at position {token.Position}", token.Position)
+            };
+        }
+
+        private CnfToken Current()
+        {
+            return _currentToken < _tokens.Count ? _tokens[_currentToken] : new CnfToken(CnfTokenType.EOF, "", -1);
+        }
+
+        private void Advance()
+        {
+            if (_currentToken < _tokens.Count)
+            {
+                _currentToken++;
+            }
+        }
+    }
+
+    #endregion
+
+    #region Formation Classes
+
+    /// <summary>
+    /// Represents a multi-circle spell formation with ID-based connections
+    /// </summary>
+    public class SpellFormation
+    {
+        public Dictionary<string, MagicCircle> Circles { get; } = new();
+        public List<FormationConnection> Connections { get; } = new();
+        
+        public void AddCircle(string id, MagicCircle circle)
+        {
+            Circles[id] = circle;
+        }
+        
+        public void AddConnection(FormationConnection connection)
+        {
+            Connections.Add(connection);
+        }
+        
+        /// <summary>
+        /// Resolves all connections and creates actual CircleConnection objects
+        /// </summary>
+        public void ResolveConnections()
+        {
+            foreach (var formationConnection in Connections)
+            {
+                if (Circles.TryGetValue(formationConnection.SourceId, out var sourceCircle) &&
+                    Circles.TryGetValue(formationConnection.TargetId, out var targetCircle))
+                {
+                    var connection = sourceCircle.ConnectTo(targetCircle, formationConnection.Type);
+                    connection.Strength = formationConnection.Strength;
+                }
+                else
+                {
+                    // Handle talisman-to-talisman connections
+                    ResolveTalismanConnection(formationConnection);
+                }
+            }
+        }
+        
+        private void ResolveTalismanConnection(FormationConnection formationConnection)
+        {
+            // Find talisman by ID across all circles
+            Talisman? sourceTalisman = null;
+            Talisman? targetTalisman = null;
+            MagicCircle? sourceCircle = null;
+            MagicCircle? targetCircle = null;
+            
+            foreach (var (circleId, circle) in Circles)
+            {
+                if (sourceTalisman == null)
+                {
+                    sourceTalisman = FindTalismanById(circle, formationConnection.SourceId);
+                    if (sourceTalisman != null) sourceCircle = circle;
+                }
+                
+                if (targetTalisman == null)
+                {
+                    targetTalisman = FindTalismanById(circle, formationConnection.TargetId);
+                    if (targetTalisman != null) targetCircle = circle;
+                }
+            }
+            
+            // If we found both talismans, create a circle connection
+            // (In a more advanced implementation, we might have talisman-specific connections)
+            if (sourceTalisman != null && targetTalisman != null && sourceCircle != null && targetCircle != null)
+            {
+                var connection = sourceCircle.ConnectTo(targetCircle, formationConnection.Type);
+                connection.Strength = formationConnection.Strength;
+            }
+        }
+        
+        private Talisman? FindTalismanById(MagicCircle circle, string talismanId)
+        {
+            // Check edge talismans
+            var talisman = circle.Talismans.FirstOrDefault(t => t.Id == talismanId || t.Name == talismanId);
+            if (talisman != null) return talisman;
+            
+            // Check center talisman
+            if (circle.CenterTalisman != null && 
+                (circle.CenterTalisman.Id == talismanId || circle.CenterTalisman.Name == talismanId))
+            {
+                return circle.CenterTalisman;
+            }
+            
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Represents a connection in a formation before it's resolved to actual CircleConnection objects
+    /// </summary>
+    public class FormationConnection
+    {
+        public string SourceId { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public ConnectionType Type { get; set; }
+        public double Strength { get; set; } = 1.0;
     }
 
     #endregion

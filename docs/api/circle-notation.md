@@ -8,8 +8,11 @@ Circle Notation Format (CNF) is a compact, human-readable text format for repres
 
 ```ebnf
 Formation = Circle | ComplexFormation
-ComplexFormation = "[" Circle "]" (Connection "[" Circle "]")*
+ComplexFormation = CircleDefinition+ ConnectionDefinition*
+CircleDefinition = "[" CircleId ":" Circle "]" | Circle
 Circle = "C" Radius Elements ["@" CenterElement] [Position]
+CircleId = (Letter | Digit | "_" | "-")+
+ConnectionDefinition = CircleId ConnectionType CircleId
 Radius = Number
 Elements = Element+
 Element = ElementLetter [PowerLevel] [State] [":" TalismanId]
@@ -18,7 +21,7 @@ PowerLevel = Number
 State = "*" | "?" | "!" | "~"
 TalismanId = (Letter | Digit | "_" | "-")+
 CenterElement = Element
-Connection = "-" | "=" | "~" | "≈" | "→" | "↔"
+ConnectionType = "-" | "=" | "~" | "≈" | "→" | "↔"
 Position = "(" Number "," Number "," Number ")"
 Number = ["-"] Digit+ ["." Digit+]
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
@@ -123,18 +126,35 @@ Connections between circles use specific symbols:
 - `→` - Directional flow (one-way)
 - `↔` - Bidirectional flow (two-way)
 
+## Multi-Circle Formations
+
 ### Formation Syntax
 
+For formations with multiple circles, use the bracket syntax with circle IDs:
+
 ```
-[<circle>] <connection> [<circle>] [<connection> [<circle>]]...
+[circle_id:circle_definition] [circle_id:circle_definition]... connection_definitions...
 ```
+
+**Components:**
+- `[<circle_id>:<circle>]` - Circle definition with unique identifier
+- `<circle_id> <connection_type> <circle_id>` - Connection between circles by ID
 
 **Examples:**
 ```
-[C3 FWE] - [C4 MLOG]                    # Two circles, basic connection
-[C5 FLIGEMWND] = [C2 FW]                # Strong connection
-[C3 FWE] ~ [C3 MLD] ~ [C3 OGC]          # Chain of harmonic connections
-[C1 F] → [C3 WEO] ← [C1 M]              # Directional flows
+[main:C3 FWE] [support:C2 MW] main-support
+[core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core=boost core~balance
+[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha→beta beta↔gamma
+```
+
+### Single Circle Notation
+
+For single circles, brackets are optional:
+
+```
+C3 FWE          # Single circle (brackets optional)
+[C3 FWE]        # Same circle with explicit brackets
+[main:C3 FWE]   # Single circle with ID (for potential connections)
 ```
 
 ## Advanced Formations
@@ -152,22 +172,20 @@ C2 FW@E|C4 MLOG         # Two layers with center element
 
 #### Triangle Formation
 ```
-[C3 FWE] - [C3 MLD] - [C3 OGC] - [C3 FWE]
+[alpha:C3 FWE] [beta:C3 MLD] [gamma:C3 OGC] alpha-beta beta-gamma gamma-alpha
 ```
 
 #### Star Formation with Hub
 ```
-[C2 F] = [C1 H] = [C2 W] = [C1 H] = [C2 E] = [C1 H] = [C2 F]
+[hub:C1 C] [point1:C2 F] [point2:C2 W] [point3:C2 E] [point4:C2 M] [point5:C2 O]
+hub=point1 hub=point2 hub=point3 hub=point4 hub=point5
 ```
-Where `H` represents a hub circle.
 
-#### Grid Formation
+#### Grid Formation (3x3)
 ```
-[C1 F] - [C1 W] - [C1 E]
-   |       |       |
-[C1 M] - [C1 O] - [C1 L]  
-   |       |       |
-[C1 G] - [C1 D] - [C1 C]
+[nw:C1 F] [n:C1 W] [ne:C1 E] [w:C1 M] [center:C1 O] [e:C1 L] [sw:C1 G] [s:C1 D] [se:C1 C]
+nw-n n-ne w-center center-e sw-s s-se
+nw-w n-center ne-e w-sw center-s e-se
 ```
 
 ### Positional Information (Optional)
@@ -176,8 +194,9 @@ Where `H` represents a hub circle.
 
 ```
 C3 FWE(0,0,0)           # Circle at origin
-C3 FWE(5,0,2)           # Circle at position (5,0,2)
-C3 FWE(10,-3,1)         # Circle at position (10,-3,1)
+[main:C3 FWE(5,0,2)]    # Circle with ID at position (5,0,2)
+[support:C3 FWE(10,-3,1)] # Circle with ID at position (10,-3,1)
+main-support             # Connection between positioned circles
 ```
 
 ## Pattern Libraries
@@ -208,16 +227,19 @@ C3 FWE(10,-3,1)         # Circle at position (10,-3,1)
 ```
 
 #### Stability Matrix
+### Stability Enhancement Formation
+
 ```
-[C3 EEE] = [C3 WWW] = [C3 EEE]
-    |         |         |
-    =         =         =
-    |         |         |
-[C3 WWW] = [C3 FFF] = [C3 WWW]
-    |         |         |  
-    =         =         =
-    |         |         |
-[C3 EEE] = [C3 WWW] = [C3 EEE]
+[stabilizer:C3 EEE] [core:C3 WWW] [amplifier:C3 EEE]
+[foundation1:C3 WWW] [nexus:C3 FFF] [foundation2:C3 WWW]
+[anchor1:C3 EEE] [anchor2:C3 WWW] [anchor3:C3 EEE]
+
+stabilizer=core core=amplifier
+foundation1=nexus nexus=foundation2
+anchor1=anchor2 anchor2=anchor3
+
+stabilizer=foundation1 amplifier=foundation2
+foundation1=anchor1 nexus=anchor2 foundation2=anchor3
 ```
 
 ## Shorthand Notations
@@ -246,33 +268,39 @@ C7 F3W2E*4          # Four repetitions of Fire3-Water2-Earth sequence
 
 **CNF:**
 ```
-[C3 FWE] - [C4 MLGO] = [C2 FW]
+[main:C3 FWE] [support:C4 MLGO] [boost:C2 FW] main-support support=boost
 ```
 
 **JSON Equivalent:**
 ```json
 {
-  "circles": [
-    {
-      "radius": 3,
-      "elements": ["Fire", "Water", "Earth"],
-      "connections": [{"target": 1, "type": "basic"}]
-    },
-    {
-      "radius": 4, 
-      "elements": ["Metal", "Light", "Light", "Wood"],
-      "connections": [{"target": 0, "type": "basic"}, {"target": 2, "type": "strong"}]
-    },
-    {
-      "radius": 2,
-      "elements": ["Fire", "Water"],
-      "connections": [{"target": 1, "type": "strong"}]
-    }
-  ]
+  "formation": {
+    "circles": [
+      {
+        "id": "main",
+        "radius": 3,
+        "elements": ["Fire", "Water", "Earth"]
+      },
+      {
+        "id": "support", 
+        "radius": 4,
+        "elements": ["Metal", "Light", "Light", "Wood"]
+      },
+      {
+        "id": "boost",
+        "radius": 2,
+        "elements": ["Fire", "Water"]
+      }
+    ],
+    "connections": [
+      {"source": "main", "target": "support", "type": "basic"},
+      {"source": "support", "target": "boost", "type": "strong"}
+    ]
+  }
 }
 ```
 
-**Size Reduction:** ~85% smaller
+**Size Reduction:** ~80% smaller
 
 ### Readability Comparison
 
@@ -353,6 +381,7 @@ Added strong connection to new circle
 
 The following examples are verified to work with the current implementation:
 
+#### Single Circle Examples
 ```
 C3 F W E                    # Basic three-element circle
 C5 F2.5 W1.2 L0.8          # Circle with power levels
@@ -364,7 +393,17 @@ C10 FWEML                  # Base + derived elements
 C0.5 C:chaos D:dark        # Special elements with IDs
 C7.5 F3.14:pi W2.71:euler  # Mathematical constants
 C12 FWEMOLINDGCV           # All elements (12 total)
+C3 FWE@M                   # Circle with center talisman
 ```
+
+#### Multi-Circle Examples (Planned Implementation)
+```
+[main:C3 FWE] [support:C2 MW] main-support
+[core:C5 FLIGEMWND] [boost:C1 F] [balance:C1 W] core=boost core~balance
+[alpha:C4 FWEO@M] [beta:C3 LND] [gamma:C2 GC] alpha→beta beta↔gamma
+```
+
+**Note:** Multi-circle formations with ID-based connections are currently in development.
 
 **Element Symbol Reference:**
 - F=Fire, W=Water, E=Earth, M=Metal, O=Wood

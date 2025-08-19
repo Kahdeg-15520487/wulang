@@ -35,12 +35,24 @@ namespace WuLangSpellcraft
                 Console.WriteLine("  5. 🏗️ Composition System");
                 Console.WriteLine("  6. 🏺 Artifact System");
                 Console.WriteLine("  7. 💾 Serialization System");
-                Console.WriteLine("  8. 🎓 Interactive Workshop");
-                Console.WriteLine("  9. Exit");
+                Console.WriteLine("  8. 📄 JSON File Parser");
+                Console.WriteLine("  9. 🌀 CNF File Parser");
+                Console.WriteLine(" 10. 🎓 Interactive Workshop");
+                Console.WriteLine(" 11. Exit");
                 Console.WriteLine();
-                Console.Write("Choose a demonstration (1-9): ");
+                Console.Write("Choose a demonstration (1-11): ");
 
-                var choice = Console.ReadKey(true).KeyChar;
+                var input = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(input))
+                {
+                    Console.Clear();
+                    Console.WriteLine("🌟 WULANG SPELLCRAFT DEMONSTRATION 🌟");
+                    Console.WriteLine(new string('═', 45));
+                    Console.WriteLine();
+                    Console.WriteLine("❌ Invalid choice. Please enter 1-11.");
+                    continue;
+                }
+                
                 Console.Clear();
                 
                 // Show header again after clear
@@ -48,41 +60,47 @@ namespace WuLangSpellcraft
                 Console.WriteLine(new string('═', 45));
                 Console.WriteLine();
 
-                switch (choice)
+                switch (input.Trim())
                 {
-                    case '1':
+                    case "1":
                         ElementalSystemDemo.Run();
                         break;
-                    case '2':
+                    case "2":
                         TalismanSystemDemo.Run();
                         break;
-                    case '3':
+                    case "3":
                         StabilityCastingDemo.Run();
                         break;
-                    case '4':
+                    case "4":
                         MagicCircleDemo.Run();
                         break;
-                    case '5':
+                    case "5":
                         CompositionSystemDemo.Run();
                         break;
-                    case '6':
+                    case "6":
                         ArtifactSystemDemo.Run();
                         break;
-                    case '7':
+                    case "7":
                         SerializationSystemDemo.Run();
                         break;
-                    case '8':
+                    case "8":
+                        JsonFileParserDemo.Run();
+                        break;
+                    case "9":
+                        CnfFileParserDemo.Run();
+                        break;
+                    case "10":
                         InteractiveWorkshop.Run();
                         break;
-                    case '9':
+                    case "11":
                         Console.WriteLine("🌟 Thank you for exploring Wu Lang Spellcraft! 🌟");
                         return;
                     default:
-                        Console.WriteLine("❌ Invalid choice. Please enter 1-9.");
+                        Console.WriteLine("❌ Invalid choice. Please enter 1-11.");
                         break;
                 }
 
-                if (choice != '9')
+                if (input.Trim() != "11")
                 {
                     Console.WriteLine();
                     Console.WriteLine("Press any key to return to main menu...");

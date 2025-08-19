@@ -297,6 +297,9 @@ namespace WuLangSpellcraft
                         var elementsDisplay = string.Join(", ", circle.Talismans.Select(t => GetElementDisplay(t.PrimaryElement)));
                         Console.WriteLine($"    Elements: {elementsDisplay}");
                     }
+                    
+                    Console.WriteLine("    Visualization:");
+                    WuLangSpellcraft.Demo.Utilities.CircleVisualizer.RenderCircle(circle, "    ");
                     Console.WriteLine();
                 }
 

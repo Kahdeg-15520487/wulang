@@ -60,6 +60,54 @@ namespace WuLangSpellcraft.Demo.Utilities
             Console.WriteLine($"└{new string('─', totalWidth)}┘");
         }
 
+        public static void RenderCircle(MagicCircle circle, string indent, bool showPowerLevels = true, bool showNames = false)
+        {
+            // Calculate consistent grid size - increase for larger circles
+            var baseSize = Math.Max(15, (int)(circle.Radius * 8) + 6); // Increased multiplier and padding
+            var gridSize = baseSize | 1; // Ensure odd number for proper center
+            if (gridSize > 41) gridSize = 41; // Increased cap for larger circles
+            
+            // Create title and calculate total width needed
+            var titlePart = $" {circle.Name} (R:{circle.Radius}) ";
+            var contentWidth = gridSize + 2; // Grid + 2 spaces (one on each side)
+            var totalWidth = Math.Max(contentWidth, titlePart.Length + 2); // Ensure title fits
+            
+            // Create top border
+            var remainingSpace = totalWidth - titlePart.Length;
+            var rightBorder = new string('─', remainingSpace);
+            Console.WriteLine($"{indent}┌{titlePart}{rightBorder}┐");
+            
+            if (circle.Talismans.Count == 0)
+            {
+                var emptyLine = new string(' ', totalWidth);
+                Console.WriteLine($"{indent}│{emptyLine}│");
+                var emptyMsg = "  (Empty Circle)";
+                var emptyPadding = new string(' ', totalWidth - emptyMsg.Length);
+                Console.WriteLine($"{indent}│{emptyMsg}{emptyPadding}│");
+                Console.WriteLine($"{indent}│{emptyLine}│");
+                Console.WriteLine($"{indent}└{new string('─', totalWidth)}┘");
+                return;
+            }
+
+            var grid = CreateGrid(gridSize);
+            var centerX = gridSize / 2;
+            var centerY = gridSize / 2;
+
+            // Draw circle outline
+            DrawCircleOutline(grid, centerX, centerY, circle.Radius, gridSize);
+
+            // Draw radius indicator
+            DrawRadiusIndicator(grid, centerX, centerY, circle.Radius, gridSize);
+
+            // Place talismans
+            PlaceTalismans(grid, circle, centerX, centerY, gridSize, showPowerLevels, showNames);
+
+            // Render the grid with proper borders and indentation
+            RenderGridWithIndent(grid, gridSize, totalWidth, indent);
+            
+            Console.WriteLine($"{indent}└{new string('─', totalWidth)}┘");
+        }
+
         public static void RenderCircleCompact(MagicCircle circle)
         {
             var symbols = circle.Talismans.Select(t => ElementSymbols.GetSymbol(t.PrimaryElement.Type)).ToArray();
@@ -239,6 +287,80 @@ namespace WuLangSpellcraft.Demo.Utilities
             for (int y = 0; y < gridSize; y++)
             {
                 Console.Write("│ ");
+                for (int x = 0; x < gridSize; x++)
+                {
+                    var ch = grid[y, x];
+                    
+                    // Color-code elements
+                    switch (ch)
+                    {
+                        case 'F': // Fire
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            break;
+                        case 'W': // Water
+                            Console.ForegroundColor = ConsoleColor.Blue;
+                            break;
+                        case 'E': // Earth
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            break;
+                        case 'M': // Metal
+                            Console.ForegroundColor = ConsoleColor.White;
+                            break;
+                        case 'O': // Wood
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            break;
+                        case 'L': // Lightning
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            break;
+                        case 'N': // Wind
+                            Console.ForegroundColor = ConsoleColor.Gray;
+                            break;
+                        case 'I': // Light
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            break;
+                        case 'D': // Dark
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            break;
+                        case 'G': // Forge
+                            Console.ForegroundColor = ConsoleColor.DarkRed;
+                            break;
+                        case 'C': // Chaos
+                            Console.ForegroundColor = ConsoleColor.Magenta;
+                            break;
+                        case 'V': // Void
+                            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                            break;
+                        case '◦': // Center
+                            Console.ForegroundColor = ConsoleColor.DarkYellow;
+                            break;
+                        case '·': // Circle outline
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            break;
+                        case '-': // Radius indicator
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            break;
+                        default:
+                            Console.ResetColor();
+                            break;
+                    }
+                    
+                    Console.Write(ch);
+                    Console.ResetColor();
+                }
+                
+                // Calculate and add right padding to match total width
+                var usedWidth = gridSize + 2; // Grid + "│ " at start
+                var rightPadding = totalWidth - usedWidth;
+                Console.Write(new string(' ', rightPadding));
+                Console.WriteLine(" │");
+            }
+        }
+
+        private static void RenderGridWithIndent(char[,] grid, int gridSize, int totalWidth, string indent)
+        {
+            for (int y = 0; y < gridSize; y++)
+            {
+                Console.Write($"{indent}│ ");
                 for (int x = 0; x < gridSize; x++)
                 {
                     var ch = grid[y, x];

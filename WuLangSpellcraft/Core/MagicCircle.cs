@@ -9,7 +9,7 @@ namespace WuLangSpellcraft.Core
     /// </summary>
     public class MagicCircle
     {
-        public Guid Id { get; }
+        public string Id { get; }
         public string Name { get; set; }
         public List<Talisman> Talismans { get; }
         public double Radius { get; set; }
@@ -41,8 +41,8 @@ namespace WuLangSpellcraft.Core
 
         public MagicCircle(string? name = null, double radius = 5.0)
         {
-            Id = Guid.NewGuid();
-            Name = name ?? $"Circle_{Id.ToString()[..8]}";
+            Id = Utilities.GenerateShortId();
+            Name = name ?? $"Circle_{Id}";
             Talismans = new List<Talisman>();
             AttachedArtifacts = new List<Artifact>();
             Connections = new List<CircleConnection>();
@@ -59,10 +59,10 @@ namespace WuLangSpellcraft.Core
         /// <summary>
         /// Internal constructor for deserialization that preserves the ID
         /// </summary>
-        internal MagicCircle(Guid id, string? name = null, double radius = 5.0)
+        internal MagicCircle(string id, string? name = null, double radius = 5.0)
         {
             Id = id;
-            Name = name ?? $"Circle_{Id.ToString()[..8]}";
+            Name = name ?? $"Circle_{Id}";
             Talismans = new List<Talisman>();
             AttachedArtifacts = new List<Artifact>();
             Connections = new List<CircleConnection>();

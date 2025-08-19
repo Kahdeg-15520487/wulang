@@ -180,33 +180,14 @@ namespace WuLangSpellcraft.Core.Serialization
             // Add talisman ID if option is enabled and talisman has a meaningful name
             if (options.IncludeTalismanIds && !string.IsNullOrEmpty(talisman.Name))
             {
-                // Use talisman name as ID if it looks like a valid CNF ID
-                var id = options.UseReadableIds && IsValidCnfId(talisman.Name) ? 
+                // Use talisman name as ID if it looks like a valid CNF ID, otherwise use the ID
+                var id = options.UseReadableIds && Utilities.IsValidCnfId(talisman.Name) ? 
                     talisman.Name : 
-                    talisman.Id.ToString("N")[..8];
+                    talisman.Id;
                 result.Append($":{id}");
             }
             
             return result.ToString();
-        }
-
-        private static string ConvertGuidToReadableId(Guid guid, string name)
-        {
-            // Try to extract a readable ID from the talisman name
-            if (!string.IsNullOrEmpty(name) && IsValidCnfId(name))
-            {
-                return name.ToLowerInvariant();
-            }
-            
-            // Fall back to shortened GUID
-            return guid.ToString("N")[..8];
-        }
-
-        private static bool IsValidCnfId(string id)
-        {
-            return !string.IsNullOrWhiteSpace(id) && 
-                   id.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-') &&
-                   id.Length <= 16;
         }
 
         #endregion
@@ -241,7 +222,7 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public class TalismanData
     {
-        public Guid Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public ElementData PrimaryElement { get; set; } = new();
         public List<ElementData> SecondaryElements { get; set; } = new();
@@ -288,8 +269,8 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public class CircleConnectionData
     {
-        public Guid SourceId { get; set; }
-        public Guid TargetId { get; set; }
+        public string SourceId { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
         public ConnectionType Type { get; set; }
         public double Strength { get; set; }
         public bool IsActive { get; set; }
@@ -311,7 +292,7 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public class MagicCircleData
     {
-        public Guid Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public List<TalismanData> Talismans { get; set; } = new();
         public double Radius { get; set; }
@@ -362,7 +343,7 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public class SpellConfiguration
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Id { get; set; } = Utilities.GenerateShortId();
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<MagicCircleData> Circles { get; set; } = new();
@@ -405,7 +386,7 @@ namespace WuLangSpellcraft.Core.Serialization
         public List<MagicCircle> ReconstructSpell()
         {
             var circles = new List<MagicCircle>();
-            var circleMap = new Dictionary<Guid, MagicCircle>();
+            var circleMap = new Dictionary<string, MagicCircle>();
 
             // First, create all circles
             foreach (var circleData in Circles)
@@ -536,38 +517,19 @@ namespace WuLangSpellcraft.Core.Serialization
     /// </summary>
     public static class ElementSymbols
     {
-        private static readonly Dictionary<ElementType, char> _typeToSymbol = new()
-        {
-            { ElementType.Fire, 'F' },
-            { ElementType.Water, 'W' },
-            { ElementType.Earth, 'E' },
-            { ElementType.Metal, 'M' },
-            { ElementType.Wood, 'O' },  // 'O' for wOod to avoid conflict with Water
-            { ElementType.Lightning, 'L' },
-            { ElementType.Wind, 'N' },  // wiNd
-            { ElementType.Light, 'I' }, // lIght
-            { ElementType.Dark, 'D' },
-            { ElementType.Forge, 'G' }, // forGe
-            { ElementType.Chaos, 'C' },
-            { ElementType.Void, 'V' }
-        };
-
-        private static readonly Dictionary<char, ElementType> _symbolToType = 
-            _typeToSymbol.ToDictionary(kv => kv.Value, kv => kv.Key);
-
         public static char GetSymbol(ElementType type)
         {
-            return _typeToSymbol.TryGetValue(type, out var symbol) ? symbol : '?';
+            return Utilities.GetElementSymbol(type);
         }
 
         public static ElementType GetElementType(char symbol)
         {
-            return _symbolToType.TryGetValue(char.ToUpperInvariant(symbol), out var type) ? type : ElementType.Fire;
+            return Utilities.GetElementType(symbol);
         }
 
         public static bool IsValidSymbol(char symbol)
         {
-            return _symbolToType.ContainsKey(char.ToUpperInvariant(symbol));
+            return Utilities.IsValidElementSymbol(symbol);
         }
     }
 
@@ -653,13 +615,13 @@ namespace WuLangSpellcraft.Core.Serialization
                     default:
                         if (char.IsDigit(current) || current == '.')
                         {
-                            var (number, newPos) = ReadNumber(input, position);
+                            var (number, newPos) = Utilities.ReadNumber(input, position);
                             yield return new CnfToken(CnfTokenType.Number, number, position);
                             position = newPos;
                         }
                         else if (char.IsLetter(current) || current == '_')
                         {
-                            var (identifier, newPos) = ReadIdentifier(input, position);
+                            var (identifier, newPos) = Utilities.ReadIdentifier(input, position);
                             yield return new CnfToken(CnfTokenType.Identifier, identifier, position);
                             position = newPos;
                         }
@@ -672,53 +634,6 @@ namespace WuLangSpellcraft.Core.Serialization
             }
             
             yield return new CnfToken(CnfTokenType.EOF, "", position);
-        }
-
-        private static (string number, int newPosition) ReadNumber(string input, int startPos)
-        {
-            var endPos = startPos;
-            var hasDecimal = false;
-            
-            while (endPos < input.Length)
-            {
-                var c = input[endPos];
-                if (char.IsDigit(c))
-                {
-                    endPos++;
-                }
-                else if (c == '.' && !hasDecimal)
-                {
-                    hasDecimal = true;
-                    endPos++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            
-            return (input[startPos..endPos], endPos);
-        }
-
-        private static (string identifier, int newPosition) ReadIdentifier(string input, int startPos)
-        {
-            var endPos = startPos;
-            
-            while (endPos < input.Length)
-            {
-                var c = input[endPos];
-                if (char.IsLetter(c) || c == '_' || c == '-' || 
-                    (endPos > startPos && (char.IsDigit(c) || c == '.'))) // Allow numbers and dots after first character
-                {
-                    endPos++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            
-            return (input[startPos..endPos], endPos);
         }
     }
 
@@ -759,7 +674,7 @@ namespace WuLangSpellcraft.Core.Serialization
             Advance(); // Move past circle definition
 
             // Create circle
-            var circle = new MagicCircle(Guid.NewGuid(), $"Circle R{radius}", radius);
+            var circle = new MagicCircle($"Circle R{radius}", radius);
 
             // Parse elements
             while (Current().Type != CnfTokenType.EOF)

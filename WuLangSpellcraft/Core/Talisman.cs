@@ -52,7 +52,7 @@ namespace WuLangSpellcraft.Core
     /// </summary>
     public class Talisman
     {
-        public Guid Id { get; }
+        public string Id { get; }
         public string Name { get; set; }
         public Element PrimaryElement { get; }
         public List<Element> SecondaryElements { get; }
@@ -69,7 +69,7 @@ namespace WuLangSpellcraft.Core
 
         public Talisman(Element primaryElement, string? name = null)
         {
-            Id = Guid.NewGuid();
+            Id = Utilities.GenerateShortId();
             Name = name ?? $"{primaryElement.ChineseName} Talisman";
             PrimaryElement = primaryElement;
             SecondaryElements = new List<Element>();

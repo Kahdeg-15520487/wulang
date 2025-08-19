@@ -92,7 +92,7 @@ Console.WriteLine($"Generated: {effect.Type} with power {effect.Power}");
 - `MagicCircle` - Circular arrangements with sacred geometry
 - `SpellEffect` - Generated effects for world engine integration
 
-### Serialization: `WuLangSpellcraft.Core.Serialization`
+### Serialization: `WuLangSpellcraft.Serialization`
 - `SpellSerializer` - JSON serialization for persistence
 - `SpellConfiguration` - Complete spell definitions with metadata
 - Custom converters for all core types

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using WuLangSpellcraft.Core;
-using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Serialization;
 using WuLangSpellcraft.Demo.Utilities;
 
 namespace WuLangSpellcraft.Demo.Demonstrations

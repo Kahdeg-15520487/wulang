@@ -175,7 +175,7 @@ namespace WuLangSpellcraft
                 Console.WriteLine();
 
                 // Detect if it's single-circle or multi-circle CNF
-                var isMultiCircle = WuLangSpellcraft.Core.Serialization.SpellSerializer.IsMultiCircleCnf(cnf);
+                var isMultiCircle = WuLangSpellcraft.Serialization.SpellSerializer.IsMultiCircleCnf(cnf);
                 
                 if (isMultiCircle)
                 {
@@ -199,7 +199,7 @@ namespace WuLangSpellcraft
         {
             try
             {
-                var circle = WuLangSpellcraft.Core.Serialization.SpellSerializer.DeserializeCircleFromCnf(cnf);
+                var circle = WuLangSpellcraft.Serialization.SpellSerializer.DeserializeCircleFromCnf(cnf);
                 
                 Console.WriteLine("📊 Circle Analysis:");
                 Console.WriteLine($"  Radius: {circle.Radius}");
@@ -230,7 +230,7 @@ namespace WuLangSpellcraft
                 }
 
                 Console.WriteLine("💾 Serialization Results:");
-                Console.WriteLine($"  CNF: {WuLangSpellcraft.Core.Serialization.SpellSerializer.SerializeCircleToCnf(circle)}");
+                Console.WriteLine($"  CNF: {WuLangSpellcraft.Serialization.SpellSerializer.SerializeCircleToCnf(circle)}");
                 
                 Console.WriteLine();
                 Console.WriteLine("🎨 Circle Visualization:");
@@ -247,7 +247,7 @@ namespace WuLangSpellcraft
         {
             try
             {
-                var formation = WuLangSpellcraft.Core.Serialization.SpellSerializer.DeserializeFormationFromCnf(cnf);
+                var formation = WuLangSpellcraft.Serialization.SpellSerializer.DeserializeFormationFromCnf(cnf);
                 
                 Console.WriteLine("📊 Formation Analysis:");
                 Console.WriteLine($"  Total Circles: {formation.Circles.Count}");

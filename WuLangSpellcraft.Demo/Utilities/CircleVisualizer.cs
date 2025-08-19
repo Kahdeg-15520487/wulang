@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using WuLangSpellcraft.Core;
-using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Serialization;
 
 namespace WuLangSpellcraft.Demo.Utilities
 {
@@ -164,7 +164,6 @@ namespace WuLangSpellcraft.Demo.Utilities
                     {
                         var powerIndicator = GetPowerIndicator(talisman.PrimaryElement.Energy);
                         // Try to place power indicator in a logical position
-                        var placed = false;
                         
                         // Try positions in order: right, below, left, above
                         var offsets = new[] { (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1) };
@@ -177,7 +176,6 @@ namespace WuLangSpellcraft.Demo.Utilities
                                 grid[py, px] == ' ')
                             {
                                 grid[py, px] = powerIndicator;
-                                placed = true;
                                 break;
                             }
                         }
@@ -199,7 +197,6 @@ namespace WuLangSpellcraft.Demo.Utilities
                     {
                         var powerIndicator = GetPowerIndicator(circle.CenterTalisman.PrimaryElement.Energy);
                         // Try to place power indicator around the center talisman
-                        var placed = false;
                         
                         // Try positions in order: right, below, left, above, diagonals
                         var offsets = new[] { (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1) };
@@ -212,7 +209,6 @@ namespace WuLangSpellcraft.Demo.Utilities
                                 grid[py, px] == ' ')
                             {
                                 grid[py, px] = powerIndicator;
-                                placed = true;
                                 break;
                             }
                         }

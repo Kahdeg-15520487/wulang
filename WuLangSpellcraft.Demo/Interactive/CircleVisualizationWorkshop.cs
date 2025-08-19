@@ -1,6 +1,6 @@
 using System;
 using WuLangSpellcraft.Core;
-using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Serialization;
 using WuLangSpellcraft.Demo.Utilities;
 
 namespace WuLangSpellcraft.Demo.Interactive

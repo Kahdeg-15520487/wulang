@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using WuLangSpellcraft.Core;
-using WuLangSpellcraft.Core.Serialization;
+using WuLangSpellcraft.Serialization;
 
 namespace WuLangSpellcraft.Demo.Demonstrations
 {

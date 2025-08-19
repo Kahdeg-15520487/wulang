@@ -40,7 +40,6 @@ namespace WuLangSpellcraft.Core
     public enum ElementState
     {
         Normal,     // Default state (no symbol)
-        Active,     // * = active/charged element
         Unstable,   // ? = unstable element  
         Damaged,    // ! = damaged element
         Resonating  // ~ = resonating element

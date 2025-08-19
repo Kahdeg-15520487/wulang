@@ -315,13 +315,8 @@ namespace WuLangSpellcraft.Serialization
 
             Advance(); // Move past element token
 
-            // Check for element state symbols (*, ?, !, ~)
-            if (Current().Type == CnfTokenType.Star)
-            {
-                elementState = ElementState.Active;
-                Advance();
-            }
-            else if (Current().Type == CnfTokenType.Question)
+            // Check for element state symbols (?, !, ~)
+            if (Current().Type == CnfTokenType.Question)
             {
                 elementState = ElementState.Unstable;
                 Advance();

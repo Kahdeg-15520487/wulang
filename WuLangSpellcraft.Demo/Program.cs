@@ -465,7 +465,6 @@ namespace WuLangSpellcraft
         {
             var stateSymbol = element.State switch
             {
-                ElementState.Active => "*",
                 ElementState.Unstable => "?",
                 ElementState.Damaged => "!",
                 ElementState.Resonating => "~",

@@ -91,7 +91,6 @@ C3 F2:core W1:flow E3:anchor  # Power levels with named IDs
 Special states can be indicated with symbols after the element:
 
 ```
-C3 F*WE         # * = active/charged element
 C3 F?WE         # ? = unstable element  
 C3 F!WE         # ! = damaged element
 C3 F~WE         # ~ = resonating element
@@ -327,7 +326,7 @@ Elements = Element+
 Element = ElementLetter [PowerLevel] [State]
 ElementLetter = "F" | "W" | "E" | "M" | "O" | "L" | "A" | "G" | "D" | "R" | "C" | "V"
 PowerLevel = Digit+
-State = "*" | "?" | "!" | "~"
+State = "?" | "!" | "~"
 CenterElement = Element
 Connection = "-" | "=" | "~" | "~=" | "->" | "<->"
 Position = "(" Number "," Number "," Number ")"

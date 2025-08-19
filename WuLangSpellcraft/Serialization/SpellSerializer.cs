@@ -217,7 +217,6 @@ namespace WuLangSpellcraft.Serialization
             {
                 var stateSymbol = talisman.PrimaryElement.State switch
                 {
-                    ElementState.Active => "*",
                     ElementState.Unstable => "?",
                     ElementState.Damaged => "!",
                     ElementState.Resonating => "~",

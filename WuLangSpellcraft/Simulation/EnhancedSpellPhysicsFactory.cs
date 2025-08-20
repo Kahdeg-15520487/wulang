@@ -1,4 +1,5 @@
 using System.Numerics;
+using WuLangSpellcraft.Core;
 
 namespace WuLangSpellcraft.Simulation
 {
@@ -7,6 +8,40 @@ namespace WuLangSpellcraft.Simulation
     /// </summary>
     public static class EnhancedSpellPhysicsFactory
     {
+        /// <summary>
+        /// Creates a spell effect from a stability-based casting result.
+        /// </summary>
+        /// <param name="stabilityResult">The result of stability-based casting.</param>
+        /// <returns>An EnhancedPhysicsObject if successful, null if casting failed without physics effects.</returns>
+        public static EnhancedPhysicsObject? CreateSpellEffectFromStability(StabilityPhysicsResult stabilityResult)
+        {
+            if (stabilityResult.SpellResult == null)
+            {
+                return null; // No physics effect (e.g., fizzle, talisman destruction)
+            }
+            
+            var physicsObject = CreateSpellEffect(stabilityResult.SpellResult);
+            
+            // Add stability-specific modifications
+            if (stabilityResult.CastingResult.Outcome == CastingOutcome.Backfire)
+            {
+                physicsObject.Tag = "⚠️ " + physicsObject.Tag + " (Backfire)";
+            }
+            else if (stabilityResult.CastingResult.Outcome == CastingOutcome.ElementInversion)
+            {
+                physicsObject.Tag = "🔄 " + physicsObject.Tag + " (Inverted)";
+            }
+            else if (stabilityResult.CastingResult.Outcome == CastingOutcome.EnhancedSuccess)
+            {
+                physicsObject.Tag = "✨ " + physicsObject.Tag + " (Enhanced)";
+            }
+            else if (stabilityResult.CastingResult.Outcome == CastingOutcome.CatastrophicFailure)
+            {
+                physicsObject.Tag = "💥 " + physicsObject.Tag + " (Catastrophic)";
+            }
+            
+            return physicsObject;
+        }
         public static EnhancedPhysicsObject CreateSpellEffect(EnhancedSpellResult result)
         {
             Vector2 velocity = result.EffectType == SpellEffectType.Projectile 

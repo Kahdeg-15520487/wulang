@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 using WuLangSpellcraft.Core;
 using WuLangSpellcraft.Simulation;
@@ -34,8 +35,8 @@ namespace WuLangSpellcraft.Demo.Demonstrations
 
         private static void DemoFireball()
         {
-            Console.WriteLine("🔥 Demo 1: Fireball Spell (Projectile Effect)");
-            Console.WriteLine("─────────────────────────────────────────────");
+            Console.WriteLine("🔥 Demo 1: Fireball Spell with Stability Casting");
+            Console.WriteLine("──────────────────────────────────────────────────");
 
             // Create fireball formation using CNF
             string fireballCnf = "C4 F F~ E M";
@@ -55,101 +56,134 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     Console.WriteLine($"   • {talisman.PrimaryElement.Type} ({stateStr})");
                 }
 
-                // Create spell artifact for the formation
-                var fireballArtifact = new ElementalArtifact(
-                    type: ArtifactType.SpellOrb,
-                    forgeElement: ElementType.Forge,
-                    primaryElement: ElementType.Fire,
-                    name: "Fireball Orb"
-                );
-                fireballArtifact.PowerLevel = formation.PowerOutput;
-                fireballArtifact.Stability = formation.Stability;
+                // Get the primary talisman for casting
+                var primaryTalisman = formation.Talismans.FirstOrDefault(t => t.PrimaryElement.Type == ElementType.Fire);
+                if (primaryTalisman == null)
+                {
+                    Console.WriteLine("❌ No fire talisman found in formation!");
+                    return;
+                }
 
-                Console.WriteLine($"🔮 Created Artifact: {fireballArtifact.Name}");
-                Console.WriteLine($"   Power Level: {fireballArtifact.PowerLevel:F2}");
-                Console.WriteLine($"   Stability: {fireballArtifact.Stability:F2}");
+                Console.WriteLine($"🔮 Primary Casting Talisman: {primaryTalisman.Name}");
+                Console.WriteLine($"   Power Level: {primaryTalisman.PowerLevel:F2}");
+                Console.WriteLine($"   Stability: {primaryTalisman.Stability:F2}");
+                Console.WriteLine($"   Stability Level: {primaryTalisman.GetStabilityLevel()}");
 
-                // Simulate physics effect
+                // Simulate physics effect with stability casting
                 var origin = new Vector2(0, 0);
                 var direction = new Vector2(1, 0); // Fire east
-                var spellResult = ArtifactPhysicsEvaluator.EvaluateEnhanced(fireballArtifact, origin, direction);
+                double spellEnergyCost = 25.0; // Medium energy spell
                 
-                Console.WriteLine($"🎯 Physics Effect: {spellResult.EffectType}");
-                Console.WriteLine($"   Origin: ({spellResult.Origin.X:F1}, {spellResult.Origin.Y:F1})");
-                Console.WriteLine($"   Direction: ({spellResult.Direction.X:F1}, {spellResult.Direction.Y:F1})");
-                Console.WriteLine($"   Initial Velocity: {spellResult.InitialVelocity:F1} m/s");
-                Console.WriteLine($"   Mass: {spellResult.Mass:F2} kg");
-                Console.WriteLine($"   Radius: {spellResult.Radius:F2} m");
+                Console.WriteLine();
+                Console.WriteLine($"🎯 Attempting Stability-Based Casting (Energy Cost: {spellEnergyCost}):");
+                
+                // Use the new stability-based casting system
+                var stabilityResult = ArtifactPhysicsEvaluator.AttemptCastingWithPhysics(
+                    primaryTalisman, spellEnergyCost, origin, direction);
+                
+                Console.WriteLine($"   Casting Outcome: {stabilityResult.CastingResult.Outcome}");
+                Console.WriteLine($"   Power Multiplier: {stabilityResult.CastingResult.PowerMultiplier:F2}x");
+                Console.WriteLine($"   Energy Consumed: {stabilityResult.CastingResult.EnergyConsumed:F1}");
+                Console.WriteLine($"   Message: {stabilityResult.CastingResult.Message}");
+                
+                if (stabilityResult.CastingResult.SecondaryEffects.Any())
+                {
+                    Console.WriteLine("   Secondary Effects:");
+                    foreach (var effect in stabilityResult.CastingResult.SecondaryEffects)
+                    {
+                        Console.WriteLine($"     • {effect}");
+                    }
+                }
 
-                // Create physics object
-                var physicsObject = EnhancedSpellPhysicsFactory.CreateSpellEffect(spellResult);
-                Console.WriteLine($"🌍 Physics Object Created: {physicsObject.Tag} projectile");
-                Console.WriteLine($"   Position: ({physicsObject.Position.X:F1}, {physicsObject.Position.Y:F1})");
-                Console.WriteLine($"   Velocity: ({physicsObject.Velocity.X:F1}, {physicsObject.Velocity.Y:F1})");
+                if (stabilityResult.CastingSuccessful && stabilityResult.SpellResult != null)
+                {
+                    var spellResult = stabilityResult.SpellResult;
+                    Console.WriteLine();
+                    Console.WriteLine($"🎯 Physics Effect Generated:");
+                    Console.WriteLine($"   Effect Type: {spellResult.EffectType}");
+                    Console.WriteLine($"   Element: {spellResult.Element}");
+                    Console.WriteLine($"   Origin: ({spellResult.Origin.X:F1}, {spellResult.Origin.Y:F1})");
+                    Console.WriteLine($"   Direction: ({spellResult.Direction.X:F1}, {spellResult.Direction.Y:F1})");
+                    Console.WriteLine($"   Power: {spellResult.Power:F2} (modified by stability)");
+                    Console.WriteLine($"   Initial Velocity: {spellResult.InitialVelocity:F1} m/s");
+                    Console.WriteLine($"   Mass: {spellResult.Mass:F2} kg");
+                    Console.WriteLine($"   Radius: {spellResult.Radius:F2} m");
+
+                    // Create physics object using stability result
+                    var physicsObject = EnhancedSpellPhysicsFactory.CreateSpellEffectFromStability(stabilityResult);
+                    if (physicsObject != null)
+                    {
+                        Console.WriteLine($"🌍 Physics Object: {physicsObject.Tag}");
+                        Console.WriteLine($"   Position: ({physicsObject.Position.X:F1}, {physicsObject.Position.Y:F1})");
+                        Console.WriteLine($"   Velocity: ({physicsObject.Velocity.X:F1}, {physicsObject.Velocity.Y:F1})");
+                        
+                        // Create target for testing
+                        var target = new EnhancedPhysicsObject(
+                            position: new Vector2(20, 0), // 20 meters away
+                            velocity: Vector2.Zero,
+                            mass: 1000f, // Heavy target
+                            radius: 2f, // Large target
+                            effectType: WuLangSpellcraft.Simulation.SpellEffectType.Barrier,
+                            duration: float.MaxValue, // Infinite durability
+                            isStatic: true,
+                            tag: "Target Dummy"
+                        );
+                        
+                        Console.WriteLine();
+                        Console.WriteLine($"🎯 Target: {target.Tag} at ({target.Position.X:F1}, {target.Position.Y:F1})");
+                        
+                        // Run physics simulation
+                        Console.WriteLine();
+                        Console.WriteLine("⚡ Stability-Affected Physics Simulation:");
+                        RunFireballSimulation(physicsObject, target);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine();
+                    Console.WriteLine($"❌ Casting Failed: {stabilityResult.FailureReason}");
+                    
+                    // Some failures still create physics effects (backfire, explosions)
+                    if (stabilityResult.SpellResult != null)
+                    {
+                        Console.WriteLine("⚠️ Failure Effect Generated:");
+                        var failureObject = EnhancedSpellPhysicsFactory.CreateSpellEffectFromStability(stabilityResult);
+                        if (failureObject != null)
+                        {
+                            Console.WriteLine($"   Effect: {failureObject.Tag}");
+                            Console.WriteLine($"   Type: {failureObject.EffectType}");
+                            Console.WriteLine($"   Area: {failureObject.Radius:F1}m radius");
+                            Console.WriteLine($"   Duration: {failureObject.Duration:F1}s");
+                        }
+                    }
+                }
                 
-                // Create target for testing
-                var target = new EnhancedPhysicsObject(
-                    position: new Vector2(20, 0), // 20 meters away
-                    velocity: Vector2.Zero,
-                    mass: 1000f, // Heavy target
-                    radius: 2f, // Large target
-                    effectType: WuLangSpellcraft.Simulation.SpellEffectType.Barrier,
-                    duration: float.MaxValue, // Infinite durability
-                    isStatic: true,
-                    tag: "Target Dummy"
-                );
-                
-                Console.WriteLine($"🎯 Target Created: {target.Tag}");
-                Console.WriteLine($"   Position: ({target.Position.X:F1}, {target.Position.Y:F1})");
-                Console.WriteLine($"   Mass: {target.Mass} kg");
-                Console.WriteLine($"   Radius: {target.Radius} m");
-                
-                // Run physics simulation
+                // Show talisman condition after casting
                 Console.WriteLine();
-                Console.WriteLine("⚡ Physics Simulation:");
-                RunFireballSimulation(physicsObject, target);
-                
-                Console.WriteLine();
-                Console.WriteLine("🎯 Adjusted Targeting Test:");
-                Console.WriteLine("Testing fireball with target positioned for gravity compensation...");
-                
-                // Create a second fireball for adjusted test
-                var adjustedFireball = EnhancedSpellPhysicsFactory.CreateSpellEffect(spellResult);
-                
-                // Calculate where the fireball will be after 1.1 seconds (approximate time to reach target distance)
-                float timeToTarget = 20f / 18f; // distance / velocity ≈ 1.11 seconds
-                float gravityDrop = 0.5f * 9.8f * timeToTarget * timeToTarget; // ≈ 6 meters
-                
-                // Position target to intercept the falling fireball
-                var adjustedTarget = new EnhancedPhysicsObject(
-                    position: new Vector2(20, -gravityDrop),
-                    velocity: Vector2.Zero,
-                    mass: 1000f,
-                    radius: 2f,
-                    effectType: WuLangSpellcraft.Simulation.SpellEffectType.Barrier,
-                    duration: float.MaxValue,
-                    isStatic: true,
-                    tag: "Adjusted Target"
-                );
-                
-                Console.WriteLine($"🎯 Adjusted Target Position: ({adjustedTarget.Position.X:F1}, {adjustedTarget.Position.Y:F1})");
-                Console.WriteLine($"   (Compensating for {gravityDrop:F1}m gravity drop over {timeToTarget:F2}s)");
-                
-                RunFireballSimulation(adjustedFireball, adjustedTarget);
+                Console.WriteLine($"🔮 Talisman Condition After Casting:");
+                Console.WriteLine($"   Stability: {primaryTalisman.Stability:F3} ({primaryTalisman.GetStabilityLevel()})");
+                if (stabilityResult.CastingResult.StabilityDamage > 0)
+                {
+                    Console.WriteLine($"   Stability Damage: -{stabilityResult.CastingResult.StabilityDamage:F3}");
+                }
+                if (stabilityResult.CastingResult.TalismanDestroyed)
+                {
+                    Console.WriteLine("   ⚠️ TALISMAN DESTROYED!");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error creating fireball: {ex.Message}");
+                Console.WriteLine($"❌ Error in fireball demo: {ex.Message}");
             }
         }
 
         private static void DemoHealingSpell()
         {
-            Console.WriteLine("🌱 Demo 2: Healing Spell (Growth Effect)");
-            Console.WriteLine("────────────────────────────────────────");
+            Console.WriteLine("🌱 Demo 2: Healing Spell with Stability Casting");
+            Console.WriteLine("─────────────────────────────────────────────────");
 
             // Create healing formation using Wood elements
-            string healingCnf = "C3 W W~ W";
+            string healingCnf = "C3 O O~ O";
             Console.WriteLine($"📝 Formation CNF: {healingCnf}");
 
             try
@@ -165,42 +199,99 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     Console.WriteLine($"   • {talisman.PrimaryElement.Type} ({stateStr})");
                 }
 
-                // Create healing artifact
-                var healingArtifact = new ElementalArtifact(
-                    type: ArtifactType.SpellWand,
-                    forgeElement: ElementType.Forge,
-                    primaryElement: ElementType.Wood,
-                    name: "Wand of Renewal"
-                );
-                healingArtifact.PowerLevel = formation.PowerOutput;
-                healingArtifact.Stability = formation.Stability;
+                // Get the primary wood talisman for casting
+                var primaryTalisman = formation.Talismans.FirstOrDefault(t => t.PrimaryElement.Type == ElementType.Wood);
+                if (primaryTalisman == null)
+                {
+                    Console.WriteLine("❌ No wood talisman found in formation!");
+                    return;
+                }
 
-                Console.WriteLine($"🌿 Created Artifact: {healingArtifact.Name}");
-                Console.WriteLine($"   Power Level: {healingArtifact.PowerLevel:F2}");
-                Console.WriteLine($"   Stability: {healingArtifact.Stability:F2}");
+                Console.WriteLine($"🌿 Primary Casting Talisman: {primaryTalisman.Name}");
+                Console.WriteLine($"   Power Level: {primaryTalisman.PowerLevel:F2}");
+                Console.WriteLine($"   Stability: {primaryTalisman.Stability:F2}");
+                Console.WriteLine($"   Stability Level: {primaryTalisman.GetStabilityLevel()}");
 
-                // Simulate physics effect
+                // Simulate physics effect with stability casting
                 var origin = new Vector2(5, 5);
                 var direction = new Vector2(0, 0); // No directional movement for healing
                 var targetArea = new Vector2(5, 5); // Heal at origin
-                var spellResult = ArtifactPhysicsEvaluator.EvaluateEnhanced(healingArtifact, origin, direction, targetArea);
+                double spellEnergyCost = 15.0; // Lower energy for healing spell
                 
-                Console.WriteLine($"🎯 Physics Effect: {spellResult.EffectType}");
-                Console.WriteLine($"   Origin: ({spellResult.Origin.X:F1}, {spellResult.Origin.Y:F1})");
-                Console.WriteLine($"   Target Area: ({spellResult.TargetArea.X:F1}, {spellResult.TargetArea.Y:F1})");
-                Console.WriteLine($"   Duration: {spellResult.Duration:F1} seconds");
-                Console.WriteLine($"   Power: {spellResult.Power:F2}");
+                Console.WriteLine();
+                Console.WriteLine($"🎯 Attempting Stability-Based Healing (Energy Cost: {spellEnergyCost}):");
+                
+                // Use the new stability-based casting system
+                var stabilityResult = ArtifactPhysicsEvaluator.AttemptCastingWithPhysics(
+                    primaryTalisman, spellEnergyCost, origin, direction, targetArea);
+                
+                Console.WriteLine($"   Casting Outcome: {stabilityResult.CastingResult.Outcome}");
+                Console.WriteLine($"   Power Multiplier: {stabilityResult.CastingResult.PowerMultiplier:F2}x");
+                Console.WriteLine($"   Energy Consumed: {stabilityResult.CastingResult.EnergyConsumed:F1}");
+                Console.WriteLine($"   Message: {stabilityResult.CastingResult.Message}");
+                
+                if (stabilityResult.CastingResult.SecondaryEffects.Any())
+                {
+                    Console.WriteLine("   Secondary Effects:");
+                    foreach (var effect in stabilityResult.CastingResult.SecondaryEffects)
+                    {
+                        Console.WriteLine($"     • {effect}");
+                    }
+                }
 
-                // Create physics object
-                var physicsObject = EnhancedSpellPhysicsFactory.CreateSpellEffect(spellResult);
-                Console.WriteLine($"🌍 Physics Object Created: {physicsObject.Tag} growth effect");
-                Console.WriteLine($"   Static: {physicsObject.IsStatic}");
-                Console.WriteLine($"   Duration: {physicsObject.Duration:F1}s");
-                Console.WriteLine($"   Effect Type: {physicsObject.EffectType}");
+                if (stabilityResult.CastingSuccessful && stabilityResult.SpellResult != null)
+                {
+                    var spellResult = stabilityResult.SpellResult;
+                    Console.WriteLine();
+                    Console.WriteLine($"🎯 Healing Effect Generated:");
+                    Console.WriteLine($"   Effect Type: {spellResult.EffectType}");
+                    Console.WriteLine($"   Element: {spellResult.Element}");
+                    Console.WriteLine($"   Origin: ({spellResult.Origin.X:F1}, {spellResult.Origin.Y:F1})");
+                    Console.WriteLine($"   Target Area: ({spellResult.TargetArea.X:F1}, {spellResult.TargetArea.Y:F1})");
+                    Console.WriteLine($"   Power: {spellResult.Power:F2} (modified by stability)");
+                    Console.WriteLine($"   Duration: {spellResult.Duration:F1} seconds");
+
+                    // Create physics object using stability result
+                    var physicsObject = EnhancedSpellPhysicsFactory.CreateSpellEffectFromStability(stabilityResult);
+                    if (physicsObject != null)
+                    {
+                        Console.WriteLine($"🌍 Physics Object: {physicsObject.Tag}");
+                        Console.WriteLine($"   Static: {physicsObject.IsStatic}");
+                        Console.WriteLine($"   Duration: {physicsObject.Duration:F1}s");
+                        Console.WriteLine($"   Effect Type: {physicsObject.EffectType}");
+                        Console.WriteLine($"   Healing Area Radius: {physicsObject.Radius:F2}m");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine();
+                    Console.WriteLine($"❌ Healing Failed: {stabilityResult.FailureReason}");
+                    
+                    // Some failures still create physics effects
+                    if (stabilityResult.SpellResult != null)
+                    {
+                        Console.WriteLine("⚠️ Failure Effect Generated:");
+                        var failureObject = EnhancedSpellPhysicsFactory.CreateSpellEffectFromStability(stabilityResult);
+                        if (failureObject != null)
+                        {
+                            Console.WriteLine($"   Effect: {failureObject.Tag}");
+                            Console.WriteLine($"   Type: {failureObject.EffectType}");
+                        }
+                    }
+                }
+                
+                // Show talisman condition after casting
+                Console.WriteLine();
+                Console.WriteLine($"🌿 Talisman Condition After Casting:");
+                Console.WriteLine($"   Stability: {primaryTalisman.Stability:F3} ({primaryTalisman.GetStabilityLevel()})");
+                if (stabilityResult.CastingResult.StabilityDamage > 0)
+                {
+                    Console.WriteLine($"   Stability Damage: -{stabilityResult.CastingResult.StabilityDamage:F3}");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error creating healing spell: {ex.Message}");
+                Console.WriteLine($"❌ Error in healing spell demo: {ex.Message}");
             }
         }
 

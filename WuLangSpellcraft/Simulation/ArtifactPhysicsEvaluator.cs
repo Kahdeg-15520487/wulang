@@ -320,7 +320,7 @@ namespace WuLangSpellcraft.Simulation
                 ElementType.Earth => ElementType.Wind,
                 ElementType.Metal => ElementType.Wood,
                 ElementType.Wood => ElementType.Metal,
-                ElementType.Light => ElementType.Dark,
+                ElementType.Light => ElementType.Dark, 
                 ElementType.Dark => ElementType.Light,
                 ElementType.Lightning => ElementType.Earth,
                 ElementType.Wind => ElementType.Earth,

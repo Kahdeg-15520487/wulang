@@ -58,9 +58,10 @@ namespace WuLangSpellcraft
                 Console.WriteLine("  9. 📄 JSON File Parser");
                 Console.WriteLine(" 10. 🌀 CNF File Parser");
                 Console.WriteLine(" 11. 🎓 Interactive Workshop");
-                Console.WriteLine(" 12. Exit");
+                Console.WriteLine(" 12. ⚡ Advanced Spell Physics (NEW)");
+                Console.WriteLine(" 13. Exit");
                 Console.WriteLine();
-                Console.Write("Choose a demonstration (1-12): ");
+                Console.Write("Choose a demonstration (1-13): ");
 
                 var input = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(input))
@@ -69,7 +70,7 @@ namespace WuLangSpellcraft
                     Console.WriteLine("🌟 WULANG SPELLCRAFT DEMONSTRATION 🌟");
                     Console.WriteLine(new string('═', 45));
                     Console.WriteLine();
-                    Console.WriteLine("❌ Invalid choice. Please enter 1-12.");
+                    Console.WriteLine("❌ Invalid choice. Please enter 1-13.");
                     continue;
                 }
                 
@@ -116,14 +117,17 @@ namespace WuLangSpellcraft
                         InteractiveWorkshop.Run();
                         break;
                     case "12":
+                        AdvancedSpellPhysicsDemo.RunDemo();
+                        break;
+                    case "13":
                         Console.WriteLine("🌟 Thank you for exploring Wu Lang Spellcraft! 🌟");
                         return;
                     default:
-                        Console.WriteLine("❌ Invalid choice. Please enter 1-12.");
+                        Console.WriteLine("❌ Invalid choice. Please enter 1-13.");
                         break;
                 }
 
-                if (input.Trim() != "12")
+                if (input.Trim() != "13")
                 {
                     Console.WriteLine();
                     Console.WriteLine("Press any key to return to main menu...");
@@ -149,7 +153,7 @@ namespace WuLangSpellcraft
 
             if (args.Length == 2 && args[0] == "--demo")
             {
-                if (int.TryParse(args[1], out int demoNumber) && demoNumber >= 1 && demoNumber <= 11)
+                if (int.TryParse(args[1], out int demoNumber) && demoNumber >= 1 && demoNumber <= 12)
                 {
                     RunSpecificDemo(demoNumber);
                     return;
@@ -361,7 +365,7 @@ namespace WuLangSpellcraft
             Console.WriteLine("  WuLangSpellcraft.Demo [options]");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  --demo <number>       Run a specific demo (1-11)");
+            Console.WriteLine("  --demo <number>       Run a specific demo (1-12)");
             Console.WriteLine("  --list                List all available demos");
             Console.WriteLine("  --cnf <cnf-string>    Process a CNF string directly");
             Console.WriteLine("  --file <file-path>    Process a CNF file");
@@ -399,6 +403,7 @@ namespace WuLangSpellcraft
             Console.WriteLine("  9. 📄 JSON File Parser");
             Console.WriteLine(" 10. 🌀 CNF File Parser");
             Console.WriteLine(" 11. 🎓 Interactive Workshop");
+            Console.WriteLine(" 12. ⚡ Advanced Spell Physics (NEW)");
             Console.WriteLine();
             Console.WriteLine("Usage: WuLangSpellcraft.Demo --demo <number>");
         }
@@ -443,6 +448,9 @@ namespace WuLangSpellcraft
                     break;
                 case 11:
                     InteractiveWorkshop.Run();
+                    break;
+                case 12:
+                    AdvancedSpellPhysicsDemo.RunDemo();
                     break;
                 default:
                     Console.WriteLine($"❌ Demo {demoNumber} not found.");

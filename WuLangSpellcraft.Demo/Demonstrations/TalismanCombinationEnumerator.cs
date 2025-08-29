@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using WuLangSpellcraft.Core;
 
 namespace WuLangSpellcraft.Demo.Demonstrations
@@ -115,6 +116,12 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             
             // Generate markdown documentation
             GenerateSpellMarkdown(spellPredictions);
+            
+            // Generate JSON documentation
+            GenerateSpellJson(spellPredictions);
+            
+            // Check for center talisman usage
+            CheckCenterTalismanUsage(spellPredictions);
         }
 
         /// <summary>
@@ -517,6 +524,185 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             {
                 Console.WriteLine($"❌ Error generating markdown: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Generates a JSON documentation file with all spell predictions
+        /// </summary>
+        private static void GenerateSpellJson(List<SpellPrediction> predictions)
+        {
+            Console.WriteLine();
+            Console.WriteLine("📄 GENERATING JSON SPELL DATABASE");
+            Console.WriteLine("═════════════════════════════════════════════════════════════════");
+            
+            var jsonContent = GenerateJsonContent(predictions);
+            var filePath = "SpellDatabase.json";
+            var fullPath = Path.GetFullPath(filePath);
+            
+            try
+            {
+                File.WriteAllText(filePath, jsonContent);
+                Console.WriteLine($"✅ JSON spell database successfully generated!");
+                Console.WriteLine($"📄 File location: {fullPath}");
+                Console.WriteLine($"📊 Total spells in database: {predictions.Count:N0}");
+                
+                // Show file size
+                var fileInfo = new FileInfo(filePath);
+                Console.WriteLine($"📋 File size: {fileInfo.Length / 1024.0:F1} KB");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error generating JSON: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Generates the JSON content for spell database
+        /// </summary>
+        private static string GenerateJsonContent(List<SpellPrediction> predictions)
+        {
+            var database = new
+            {
+                metadata = new
+                {
+                    title = "WuLang Spellcraft - Spell Database",
+                    version = "1.0",
+                    generated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    total_spells = predictions.Count,
+                    description = "Systematic documentation of all predicted spells from talisman combinations"
+                },
+                statistics = new
+                {
+                    categories = predictions.GroupBy(p => p.SpellCategory)
+                        .ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                    effect_types = predictions.GroupBy(p => p.EffectType)
+                        .ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                    power_analysis = new
+                    {
+                        average = Math.Round(predictions.Average(p => p.Power), 2),
+                        maximum = Math.Round(predictions.Max(p => p.Power), 2),
+                        minimum = Math.Round(predictions.Min(p => p.Power), 2)
+                    },
+                    talisman_count_distribution = predictions.GroupBy(p => p.Elements.Count)
+                        .ToDictionary(g => g.Key.ToString(), g => g.Count())
+                },
+                spells = predictions.Select(p => new
+                {
+                    id = GenerateSpellId(p),
+                    name = p.SpellName,
+                    description = p.SpellDescription,
+                    category = p.SpellCategory.ToString(),
+                    effect_type = p.EffectType.ToString(),
+                    elements = p.Elements.Select(e => e.ToString()).ToArray(),
+                    element_count = p.Elements.Count,
+                    circle_notation = GenerateCircleNotation(p.Elements),
+                    stats = new
+                    {
+                        power = Math.Round(p.Power, 2),
+                        range = Math.Round(p.Range, 1),
+                        duration = Math.Round(p.Duration, 1),
+                        stability = Math.Round(p.Stability, 3),
+                        efficiency = Math.Round(p.Efficiency, 3),
+                        casting_time = Math.Round(p.CastingTime, 1),
+                        complexity_score = Math.Round(p.ComplexityScore, 2)
+                    },
+                    element_composition = p.Elements.GroupBy(e => e)
+                        .ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                    has_repeating_elements = p.Elements.GroupBy(e => e).Any(g => g.Count() > 1)
+                }).OrderBy(s => s.category).ThenByDescending(s => s.stats.power).ToArray()
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(database, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower
+            });
+        }
+
+        /// <summary>
+        /// Generates a unique ID for a spell based on its properties
+        /// </summary>
+        private static string GenerateSpellId(SpellPrediction prediction)
+        {
+            var elementString = string.Join("", prediction.Elements.Select(e => e.ToString()[0]));
+            var categoryCode = prediction.SpellCategory.ToString()[0];
+            var effectCode = prediction.EffectType.ToString()[0];
+            var powerLevel = Math.Floor(prediction.Power).ToString();
+            
+            return $"{categoryCode}{effectCode}_{elementString}_{powerLevel}";
+        }
+
+        /// <summary>
+        /// Checks for center talisman usage in spells
+        /// </summary>
+        private static void CheckCenterTalismanUsage(List<SpellPrediction> predictions)
+        {
+            Console.WriteLine();
+            Console.WriteLine("🎯 CENTER TALISMAN ANALYSIS");
+            Console.WriteLine("═════════════════════════════════════════════════════════════════");
+            
+            // In the current implementation, we're only generating combinations with perimeter talismans
+            // Center talismans would be indicated by @element syntax in CNF notation
+            var centerTalismanSpells = new List<SpellPrediction>();
+            
+            // Check if any of our generated spells could benefit from center talismans
+            var potentialCenterSpells = predictions.Where(p => 
+                p.Elements.Count >= 3 && // Need at least 3 elements to benefit from center
+                p.Stability < 0.7 && // Low stability might benefit from center stabilization
+                p.Power > 2.0 // High power spells often use center talismans
+            ).ToList();
+            
+            Console.WriteLine($"📊 Current Analysis Results:");
+            Console.WriteLine($"   Total spells analyzed: {predictions.Count:N0}");
+            Console.WriteLine($"   Spells using center talismans: {centerTalismanSpells.Count:N0}");
+            Console.WriteLine($"   Spells that could benefit from center: {potentialCenterSpells.Count:N0}");
+            Console.WriteLine();
+            
+            if (potentialCenterSpells.Any())
+            {
+                Console.WriteLine("🔮 Top candidates for center talisman enhancement:");
+                var topCandidates = potentialCenterSpells
+                    .OrderByDescending(p => p.Power)
+                    .ThenBy(p => p.Stability)
+                    .Take(5);
+                    
+                foreach (var spell in topCandidates)
+                {
+                    Console.WriteLine($"   • {spell.SpellName}");
+                    Console.WriteLine($"     Elements: {string.Join("+", spell.Elements)}");
+                    Console.WriteLine($"     Current: Power {spell.Power:F1}, Stability {spell.Stability:F3}");
+                    Console.WriteLine($"     Potential center element: {SuggestCenterElement(spell.Elements)}");
+                    Console.WriteLine();
+                }
+            }
+            
+            Console.WriteLine("ℹ️  Note: Current analysis uses only perimeter talismans.");
+            Console.WriteLine("   Future enhancement could include center talisman combinations using @element syntax.");
+        }
+
+        /// <summary>
+        /// Suggests a center element that would stabilize the given combination
+        /// </summary>
+        private static ElementType SuggestCenterElement(List<ElementType> elements)
+        {
+            // Find the most common element or an element that would provide balance
+            var elementCounts = elements.GroupBy(e => e).ToDictionary(g => g.Key, g => g.Count());
+            
+            // If there's a dominant element, suggest its complementary element for balance
+            var dominantElement = elementCounts.OrderByDescending(kv => kv.Value).First().Key;
+            
+            // Simple logic: suggest a balancing element
+            return dominantElement switch
+            {
+                ElementType.Fire => ElementType.Water,
+                ElementType.Water => ElementType.Fire,
+                ElementType.Earth => ElementType.Wind,
+                ElementType.Metal => ElementType.Wood,
+                ElementType.Wood => ElementType.Metal,
+                ElementType.Lightning => ElementType.Earth,
+                ElementType.Wind => ElementType.Earth,
+                _ => ElementType.Void // Void as a neutral balancing element
+            };
         }
 
         /// <summary>

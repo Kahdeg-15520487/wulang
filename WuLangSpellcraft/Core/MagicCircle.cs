@@ -228,7 +228,7 @@ namespace WuLangSpellcraft.Core
                 Math.Sqrt(Math.Pow(t.X - x, 2) + Math.Pow(t.Y - y, 2)) < tolerance);
         }
 
-        private int CalculateMaxTalismans()
+        public int CalculateMaxTalismans()
         {
             // Based on circle circumference and minimum talisman spacing
             var circumference = 2 * Math.PI * Radius;

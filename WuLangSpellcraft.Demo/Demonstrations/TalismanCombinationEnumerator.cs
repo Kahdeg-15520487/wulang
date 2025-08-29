@@ -90,19 +90,38 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 var uniqueCombinations = GenerateUniqueElementCombinations(allElements, talismanCount);
                 var repeatingCombinations = GenerateRepeatingElementCombinations(allElements, talismanCount, 100); // Limit to 100 per count for performance
                 
-                var allCombinations = uniqueCombinations.Concat(repeatingCombinations).ToList();
+                // Generate center talisman combinations (for 2+ talismans)
+                var centerCombinations = new List<List<ElementType>>();
+                if (talismanCount >= 2)
+                {
+                    centerCombinations = GenerateCenterTalismanCombinations(allElements, talismanCount, 50); // Limit for performance
+                }
+                
+                var allCombinations = uniqueCombinations.Concat(repeatingCombinations).Concat(centerCombinations).ToList();
                 totalCombinations += allCombinations.Count;
                 
                 foreach (var combination in allCombinations)
                 {
-                    var prediction = PredictSpellFromCombination(combination);
+                    SpellPrediction? prediction;
+                    
+                    // Check if this is a center talisman combination (from our center generation)
+                    if (centerCombinations.Contains(combination))
+                    {
+                        prediction = PredictSpellFromCombinationWithCenter(combination);
+                    }
+                    else
+                    {
+                        prediction = PredictSpellFromCombination(combination);
+                    }
+                    
                     if (prediction != null)
                     {
                         spellPredictions.Add(prediction);
                     }
                 }
                 
-                Console.WriteLine($"   Generated {allCombinations.Count} combinations (unique + repeating)");
+                var centerCount = centerCombinations.Count;
+                Console.WriteLine($"   Generated {allCombinations.Count} combinations (unique + repeating + {centerCount} center)");
             }
 
             Console.WriteLine();
@@ -497,6 +516,43 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
+        /// Generates combinations with center talismans using @element syntax
+        /// </summary>
+        private static List<List<ElementType>> GenerateCenterTalismanCombinations(List<ElementType> elements, int totalCount, int maxResults)
+        {
+            var combinations = new List<List<ElementType>>();
+            var random = new Random(42); // Fixed seed for reproducible results
+            
+            if (totalCount < 2) return combinations; // Need at least 2 talismans (1 center + 1 perimeter)
+            
+            var perimeterCount = totalCount - 1; // Reserve 1 slot for center talisman
+            
+            // Generate different center talisman combinations
+            foreach (var centerElement in elements)
+            {
+                // Generate perimeter combinations for this center element
+                var perimeterCombinations = GenerateRepeatingElementCombinations(elements, perimeterCount, maxResults / elements.Count);
+                
+                foreach (var perimeterCombo in perimeterCombinations.Take(maxResults / elements.Count))
+                {
+                    // Create combination with center talisman marked specially
+                    var combination = new List<ElementType> { centerElement }; // Center element first
+                    combination.AddRange(perimeterCombo); // Then perimeter elements
+                    
+                    // Mark this as a center talisman combination by storing it in a special way
+                    // We'll use a special property in the SpellPrediction to track this
+                    combinations.Add(combination);
+                    
+                    if (combinations.Count >= maxResults) break;
+                }
+                
+                if (combinations.Count >= maxResults) break;
+            }
+            
+            return combinations.Take(maxResults).ToList();
+        }
+
+        /// <summary>
         /// Generates a markdown documentation file with all spell predictions
         /// </summary>
         private static void GenerateSpellMarkdown(List<SpellPrediction> predictions)
@@ -595,7 +651,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     effect_type = p.EffectType.ToString(),
                     elements = p.Elements.Select(e => e.ToString()).ToArray(),
                     element_count = p.Elements.Count,
-                    circle_notation = GenerateCircleNotation(p.Elements),
+                    circle_notation = GenerateCircleNotation(p.Elements, p.HasCenterTalisman, p.CenterElement),
                     stats = new
                     {
                         power = Math.Round(p.Power, 2),
@@ -608,7 +664,9 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     },
                     element_composition = p.Elements.GroupBy(e => e)
                         .ToDictionary(g => g.Key.ToString(), g => g.Count()),
-                    has_repeating_elements = p.Elements.GroupBy(e => e).Any(g => g.Count() > 1)
+                    has_repeating_elements = p.Elements.GroupBy(e => e).Any(g => g.Count() > 1),
+                    has_center_talisman = p.HasCenterTalisman,
+                    center_element = p.CenterElement?.ToString()
                 }).OrderBy(s => s.category).ThenByDescending(s => s.stats.power).ToArray()
             };
 
@@ -641,12 +699,12 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine("🎯 CENTER TALISMAN ANALYSIS");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             
-            // In the current implementation, we're only generating combinations with perimeter talismans
-            // Center talismans would be indicated by @element syntax in CNF notation
-            var centerTalismanSpells = new List<SpellPrediction>();
+            // Count actual center talisman spells
+            var centerTalismanSpells = predictions.Where(p => p.HasCenterTalisman).ToList();
             
             // Check if any of our generated spells could benefit from center talismans
             var potentialCenterSpells = predictions.Where(p => 
+                !p.HasCenterTalisman && // Don't already have center
                 p.Elements.Count >= 3 && // Need at least 3 elements to benefit from center
                 p.Stability < 0.7 && // Low stability might benefit from center stabilization
                 p.Power > 2.0 // High power spells often use center talismans
@@ -657,6 +715,23 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine($"   Spells using center talismans: {centerTalismanSpells.Count:N0}");
             Console.WriteLine($"   Spells that could benefit from center: {potentialCenterSpells.Count:N0}");
             Console.WriteLine();
+            
+            if (centerTalismanSpells.Any())
+            {
+                Console.WriteLine("✨ Center Talisman Spells Generated:");
+                var topCenterSpells = centerTalismanSpells
+                    .OrderByDescending(p => p.Power)
+                    .Take(5);
+                    
+                foreach (var spell in topCenterSpells)
+                {
+                    Console.WriteLine($"   • {spell.SpellName}");
+                    Console.WriteLine($"     Center: @{spell.CenterElement} | Perimeter: {string.Join("+", spell.Elements.Skip(1))}");
+                    Console.WriteLine($"     Stats: Power {spell.Power:F1}, Stability {spell.Stability:F3}");
+                    Console.WriteLine($"     Notation: {GenerateCircleNotation(spell.Elements, spell.HasCenterTalisman, spell.CenterElement)}");
+                    Console.WriteLine();
+                }
+            }
             
             if (potentialCenterSpells.Any())
             {
@@ -675,9 +750,6 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     Console.WriteLine();
                 }
             }
-            
-            Console.WriteLine("ℹ️  Note: Current analysis uses only perimeter talismans.");
-            Console.WriteLine("   Future enhancement could include center talisman combinations using @element syntax.");
         }
 
         /// <summary>
@@ -818,7 +890,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             markdown.AppendLine();
             
             // Circle notation
-            var circleNotation = GenerateCircleNotation(spell.Elements);
+            var circleNotation = GenerateCircleNotation(spell.Elements, spell.HasCenterTalisman, spell.CenterElement);
             markdown.AppendLine($"**Circle Notation**: `{circleNotation}`");
             markdown.AppendLine();
             
@@ -851,29 +923,60 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates circle notation format for the spell
         /// </summary>
-        private static string GenerateCircleNotation(List<ElementType> elements)
+        private static string GenerateCircleNotation(List<ElementType> elements, bool hasCenterTalisman = false, ElementType? centerElement = null)
         {
             var notation = new StringBuilder();
-            notation.Append("(");
             
-            var elementCounts = GetElementCounts(elements);
-            var notationParts = new List<string>();
+            // Standard CNF format starts with C<radius>
+            notation.Append("C4 "); // Using radius 4 as standard for spell predictions
             
-            foreach (var kvp in elementCounts)
+            // Handle center talisman notation
+            if (hasCenterTalisman && centerElement.HasValue)
             {
-                var symbol = GetElementCnfSymbol(kvp.Key);
-                if (kvp.Value > 1)
+                // For center talisman combinations, first element is center, rest are perimeter
+                var perimeterElements = elements.Skip(1).ToList();
+                var elementCounts = GetElementCounts(perimeterElements);
+                var notationParts = new List<string>();
+                
+                foreach (var kvp in elementCounts)
                 {
-                    notationParts.Add($"{symbol}x{kvp.Value}");
+                    var symbol = GetElementCnfSymbol(kvp.Key);
+                    if (kvp.Value > 1)
+                    {
+                        notationParts.Add($"{symbol}*{kvp.Value}");
+                    }
+                    else
+                    {
+                        notationParts.Add(symbol);
+                    }
                 }
-                else
-                {
-                    notationParts.Add(symbol);
-                }
+                
+                // Add center talisman notation with @ prefix  
+                var centerSymbol = GetElementCnfSymbol(centerElement.Value);
+                notation.Append(string.Join("", notationParts));
+                notation.Append($"@{centerSymbol}");
             }
-            
-            notation.Append(string.Join(" ", notationParts));
-            notation.Append(")");
+            else
+            {
+                // Regular perimeter-only notation
+                var elementCounts = GetElementCounts(elements);
+                var notationParts = new List<string>();
+                
+                foreach (var kvp in elementCounts)
+                {
+                    var symbol = GetElementCnfSymbol(kvp.Key);
+                    if (kvp.Value > 1)
+                    {
+                        notationParts.Add($"{symbol}*{kvp.Value}");
+                    }
+                    else
+                    {
+                        notationParts.Add(symbol);
+                    }
+                }
+                
+                notation.Append(string.Join("", notationParts));
+            }
             
             return notation.ToString();
         }
@@ -994,13 +1097,87 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     Stability = testCircle.Stability,
                     Efficiency = testCircle.Efficiency,
                     CastingTime = testCircle.CastingTime,
-                    ComplexityScore = testCircle.ComplexityScore
+                    ComplexityScore = testCircle.ComplexityScore,
+                    HasCenterTalisman = false,
+                    CenterElement = null
                 };
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Predicts what type of spell a talisman combination with center talisman would create
+        /// </summary>
+        private static SpellPrediction? PredictSpellFromCombinationWithCenter(List<ElementType> elements)
+        {
+            try
+            {
+                if (elements.Count < 2) return null;
+                
+                // First element is the center talisman, rest are perimeter
+                var centerElement = elements[0];
+                var perimeterElements = elements.Skip(1).ToList();
+                
+                // Create a test circle with center talisman
+                var testCircle = CreateTestCircle(4.0, perimeterElements);
+                var centerTalisman = new Talisman(new Element(centerElement));
+                testCircle.SetCenterTalisman(centerTalisman);
+                
+                var spellEffect = testCircle.CalculateSpellEffect();
+                var spellName = GenerateCenterSpellName(centerElement, perimeterElements, spellEffect);
+                var spellDescription = GenerateSpellDescription(elements, spellEffect, testCircle);
+                var spellCategory = CategorizeSpell(spellEffect, elements);
+
+                return new SpellPrediction
+                {
+                    Elements = new List<ElementType>(elements),
+                    SpellName = spellName,
+                    SpellDescription = spellDescription,
+                    SpellCategory = spellCategory,
+                    EffectType = spellEffect.Type,
+                    Power = spellEffect.Power * 1.3, // Center talisman provides power boost
+                    Range = spellEffect.Range * 1.2, // Improved range
+                    Duration = spellEffect.Duration * 1.15, // Improved duration
+                    Stability = Math.Min(1.0, testCircle.Stability * 1.4), // Significant stability boost
+                    Efficiency = testCircle.Efficiency * 1.1, // Slight efficiency improvement
+                    CastingTime = testCircle.CastingTime * 1.2, // Longer casting time due to complexity
+                    ComplexityScore = testCircle.ComplexityScore * 1.3, // Higher complexity
+                    HasCenterTalisman = true,
+                    CenterElement = centerElement
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Generates a spell name for center talisman combinations
+        /// </summary>
+        private static string GenerateCenterSpellName(ElementType centerElement, List<ElementType> perimeterElements, SpellEffect effect)
+        {
+            var centerName = centerElement.ToString();
+            var effectName = effect.Type.ToString();
+            var perimeterCount = perimeterElements.Count;
+
+            // Special center combinations
+            if (centerElement == ElementType.Void && perimeterElements.Contains(ElementType.Light))
+                return "Void-Heart Radiance";
+            if (centerElement == ElementType.Fire && perimeterElements.Contains(ElementType.Water))
+                return "Steam-Core Veil";
+            if (centerElement == ElementType.Earth && perimeterElements.Any(e => e == ElementType.Metal))
+                return "Stone-Heart Fortress";
+            if (centerElement == ElementType.Lightning && perimeterElements.Count >= 3)
+                return "Storm-Core Manifestation";
+            if (centerElement == ElementType.Wood && perimeterElements.Contains(ElementType.Fire))
+                return "Life-Core Inferno";
+
+            // Generic center naming
+            return $"{centerName}-Centered {effectName}";
         }
 
         /// <summary>
@@ -1235,6 +1412,8 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             public double Efficiency { get; set; }
             public double CastingTime { get; set; }
             public double ComplexityScore { get; set; }
+            public bool HasCenterTalisman { get; set; }
+            public ElementType? CenterElement { get; set; }
         }
 
         /// <summary>

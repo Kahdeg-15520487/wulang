@@ -18,7 +18,7 @@ Elements = Element+
 Element = ElementLetter [PowerLevel] [State] [":" TalismanId]
 ElementLetter = "F" | "W" | "E" | "M" | "O" | "L" | "N" | "I" | "D" | "G" | "C" | "V"
 PowerLevel = Number
-State = "*" | "?" | "!" | "~"
+State = "?" | "!" | "~"
 TalismanId = (Letter | Digit | "_" | "-")+
 CenterElement = Element
 ConnectionType = "-" | "=" | "~" | "~=" | "->" | "<->"

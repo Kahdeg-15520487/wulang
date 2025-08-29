@@ -42,7 +42,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
 
             // Ask user what they want to see
             Console.WriteLine("Choose demonstration mode:");
-            Console.WriteLine("1. 🔍 Spell Prediction for combinations (≤5 talismans)");
+            Console.WriteLine("1. 🔍 Spell Categorization for combinations (≤5 talismans)");
             Console.WriteLine("2. 📊 Full enumeration statistics");
             Console.Write("Enter choice (1 or 2): ");
             
@@ -51,7 +51,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
 
             if (choice == "1")
             {
-                RunSpellPredictionDemo(allElements);
+                RunSpellCategorizationDemo(allElements);
             }
             else
             {
@@ -67,18 +67,18 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
-        /// Runs spell prediction demo for combinations with 5 or fewer talismans
+        /// Runs spell categorization demo for combinations with 5 or fewer talismans
         /// </summary>
-        private static void RunSpellPredictionDemo(List<ElementType> allElements)
+        private static void RunSpellCategorizationDemo(List<ElementType> allElements)
         {
-            Console.WriteLine("🔮 SPELL PREDICTION SYSTEM");
+            Console.WriteLine("🔮 SPELL CATEGORIZATION SYSTEM");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             Console.WriteLine();
-            Console.WriteLine("Analyzing all talisman combinations with ≤5 talismans to predict spell types...");
+            Console.WriteLine("Analyzing all talisman combinations with ≤5 talismans to categorize spell types...");
             Console.WriteLine("Including combinations with repeating talismans for enhanced analysis...");
             Console.WriteLine();
 
-            var spellPredictions = new List<SpellPrediction>();
+            var spellCategorizations = new List<SpellCategorization>();
             var totalCombinations = 0;
 
             // Generate combinations for 1-5 talismans (with repetition allowed)
@@ -102,21 +102,21 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 
                 foreach (var combination in allCombinations)
                 {
-                    SpellPrediction? prediction;
+                    SpellCategorization? categorization;
                     
                     // Check if this is a center talisman combination (from our center generation)
                     if (centerCombinations.Contains(combination))
                     {
-                        prediction = PredictSpellFromCombinationWithCenter(combination);
+                        categorization = CategorizeSpellFromCombinationWithCenter(combination);
                     }
                     else
                     {
-                        prediction = PredictSpellFromCombination(combination);
+                        categorization = CategorizeSpellFromCombination(combination);
                     }
                     
-                    if (prediction != null)
+                    if (categorization != null)
                     {
-                        spellPredictions.Add(prediction);
+                        spellCategorizations.Add(categorization);
                     }
                 }
                 
@@ -127,20 +127,20 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine();
             Console.WriteLine($"📊 ANALYSIS COMPLETE");
             Console.WriteLine($"   Total combinations analyzed: {totalCombinations:N0}");
-            Console.WriteLine($"   Valid spell predictions: {spellPredictions.Count:N0}");
+            Console.WriteLine($"   Valid spell categorizations: {spellCategorizations.Count:N0}");
             Console.WriteLine();
 
             // Show results
-            ShowSpellPredictionResults(spellPredictions);
+            ShowSpellCategorizationResults(spellCategorizations);
             
             // Generate markdown documentation
-            GenerateSpellMarkdown(spellPredictions);
+            GenerateSpellMarkdown(spellCategorizations);
             
             // Generate JSON documentation
-            GenerateSpellJson(spellPredictions);
+            GenerateSpellJson(spellCategorizations);
             
             // Check for center talisman usage
-            CheckCenterTalismanUsage(spellPredictions);
+            CheckCenterTalismanUsage(spellCategorizations);
         }
 
         /// <summary>
@@ -540,7 +540,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     combination.AddRange(perimeterCombo); // Then perimeter elements
                     
                     // Mark this as a center talisman combination by storing it in a special way
-                    // We'll use a special property in the SpellPrediction to track this
+                    // We'll use a special property in the SpellCategorization to track this
                     combinations.Add(combination);
                     
                     if (combinations.Count >= maxResults) break;
@@ -553,16 +553,16 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
-        /// Generates a markdown documentation file with all spell predictions
+        /// Generates a markdown documentation file with all spell categorizations
         /// </summary>
-        private static void GenerateSpellMarkdown(List<SpellPrediction> predictions)
+        private static void GenerateSpellMarkdown(List<SpellCategorization> categorizations)
         {
             Console.WriteLine();
             Console.WriteLine("📝 GENERATING SPELL DOCUMENTATION");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             
-            var markdownContent = GenerateMarkdownContent(predictions);
-            var filePath = "SpellPredictions.md";
+            var markdownContent = GenerateMarkdownContent(categorizations);
+            var filePath = "SpellCategorizations.md";
             var fullPath = Path.GetFullPath(filePath);
             
             try
@@ -570,7 +570,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 File.WriteAllText(filePath, markdownContent);
                 Console.WriteLine($"✅ Spell documentation successfully generated!");
                 Console.WriteLine($"📄 File location: {fullPath}");
-                Console.WriteLine($"📊 Total spells documented: {predictions.Count:N0}");
+                Console.WriteLine($"📊 Total spells documented: {categorizations.Count:N0}");
                 
                 // Show file size
                 var fileInfo = new FileInfo(filePath);
@@ -583,15 +583,15 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
-        /// Generates a JSON documentation file with all spell predictions
+        /// Generates a JSON documentation file with all spell categorizations
         /// </summary>
-        private static void GenerateSpellJson(List<SpellPrediction> predictions)
+        private static void GenerateSpellJson(List<SpellCategorization> categorizations)
         {
             Console.WriteLine();
             Console.WriteLine("📄 GENERATING JSON SPELL DATABASE");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             
-            var jsonContent = GenerateJsonContent(predictions);
+            var jsonContent = GenerateJsonContent(categorizations);
             var filePath = "SpellDatabase.json";
             var fullPath = Path.GetFullPath(filePath);
             
@@ -600,7 +600,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 File.WriteAllText(filePath, jsonContent);
                 Console.WriteLine($"✅ JSON spell database successfully generated!");
                 Console.WriteLine($"📄 File location: {fullPath}");
-                Console.WriteLine($"📊 Total spells in database: {predictions.Count:N0}");
+                Console.WriteLine($"📊 Total spells in database: {categorizations.Count:N0}");
                 
                 // Show file size
                 var fileInfo = new FileInfo(filePath);
@@ -615,7 +615,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates the JSON content for spell database
         /// </summary>
-        private static string GenerateJsonContent(List<SpellPrediction> predictions)
+        private static string GenerateJsonContent(List<SpellCategorization> categorizations)
         {
             var database = new
             {
@@ -624,25 +624,25 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                     title = "WuLang Spellcraft - Spell Database",
                     version = "1.0",
                     generated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    total_spells = predictions.Count,
-                    description = "Systematic documentation of all predicted spells from talisman combinations"
+                    total_spells = categorizations.Count,
+                    description = "Systematic categorization of all categorized spells from talisman combinations"
                 },
                 statistics = new
                 {
-                    categories = predictions.GroupBy(p => p.SpellCategory)
+                    categories = categorizations.GroupBy(p => p.SpellCategory)
                         .ToDictionary(g => g.Key.ToString(), g => g.Count()),
-                    effect_types = predictions.GroupBy(p => p.EffectType)
+                    effect_types = categorizations.GroupBy(p => p.EffectType)
                         .ToDictionary(g => g.Key.ToString(), g => g.Count()),
                     power_analysis = new
                     {
-                        average = Math.Round(predictions.Average(p => p.Power), 2),
-                        maximum = Math.Round(predictions.Max(p => p.Power), 2),
-                        minimum = Math.Round(predictions.Min(p => p.Power), 2)
+                        average = Math.Round(categorizations.Average(p => p.Power), 2),
+                        maximum = Math.Round(categorizations.Max(p => p.Power), 2),
+                        minimum = Math.Round(categorizations.Min(p => p.Power), 2)
                     },
-                    talisman_count_distribution = predictions.GroupBy(p => p.Elements.Count)
+                    talisman_count_distribution = categorizations.GroupBy(p => p.Elements.Count)
                         .ToDictionary(g => g.Key.ToString(), g => g.Count())
                 },
-                spells = predictions.Select(p => new
+                spells = categorizations.Select(p => new
                 {
                     id = GenerateSpellId(p),
                     name = p.SpellName,
@@ -680,12 +680,12 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates a unique ID for a spell based on its properties
         /// </summary>
-        private static string GenerateSpellId(SpellPrediction prediction)
+        private static string GenerateSpellId(SpellCategorization categorization)
         {
-            var elementString = string.Join("", prediction.Elements.Select(e => e.ToString()[0]));
-            var categoryCode = prediction.SpellCategory.ToString()[0];
-            var effectCode = prediction.EffectType.ToString()[0];
-            var powerLevel = Math.Floor(prediction.Power).ToString();
+            var elementString = string.Join("", categorization.Elements.Select(e => e.ToString()[0]));
+            var categoryCode = categorization.SpellCategory.ToString()[0];
+            var effectCode = categorization.EffectType.ToString()[0];
+            var powerLevel = Math.Floor(categorization.Power).ToString();
             
             return $"{categoryCode}{effectCode}_{elementString}_{powerLevel}";
         }
@@ -693,17 +693,17 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Checks for center talisman usage in spells
         /// </summary>
-        private static void CheckCenterTalismanUsage(List<SpellPrediction> predictions)
+        private static void CheckCenterTalismanUsage(List<SpellCategorization> categorizations)
         {
             Console.WriteLine();
             Console.WriteLine("🎯 CENTER TALISMAN ANALYSIS");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             
             // Count actual center talisman spells
-            var centerTalismanSpells = predictions.Where(p => p.HasCenterTalisman).ToList();
+            var centerTalismanSpells = categorizations.Where(p => p.HasCenterTalisman).ToList();
             
             // Check if any of our generated spells could benefit from center talismans
-            var potentialCenterSpells = predictions.Where(p => 
+            var potentialCenterSpells = categorizations.Where(p => 
                 !p.HasCenterTalisman && // Don't already have center
                 p.Elements.Count >= 3 && // Need at least 3 elements to benefit from center
                 p.Stability < 0.7 && // Low stability might benefit from center stabilization
@@ -711,7 +711,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             ).ToList();
             
             Console.WriteLine($"📊 Current Analysis Results:");
-            Console.WriteLine($"   Total spells analyzed: {predictions.Count:N0}");
+            Console.WriteLine($"   Total spells analyzed: {categorizations.Count:N0}");
             Console.WriteLine($"   Spells using center talismans: {centerTalismanSpells.Count:N0}");
             Console.WriteLine($"   Spells that could benefit from center: {potentialCenterSpells.Count:N0}");
             Console.WriteLine();
@@ -780,15 +780,15 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates the markdown content for spell documentation
         /// </summary>
-        private static string GenerateMarkdownContent(List<SpellPrediction> predictions)
+        private static string GenerateMarkdownContent(List<SpellCategorization> categorizations)
         {
             var markdown = new StringBuilder();
             
             // Header
-            markdown.AppendLine("# WuLang Spellcraft - Spell Prediction Compendium");
+            markdown.AppendLine("# WuLang Spellcraft - Spell Categorization Compendium");
             markdown.AppendLine();
             markdown.AppendLine($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            markdown.AppendLine($"Total Spells Analyzed: {predictions.Count:N0}");
+            markdown.AppendLine($"Total Spells Analyzed: {categorizations.Count:N0}");
             markdown.AppendLine();
             markdown.AppendLine("## Table of Contents");
             markdown.AppendLine("- [Statistics](#statistics)");
@@ -801,10 +801,10 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             markdown.AppendLine();
             
             // Statistics section
-            GenerateStatisticsSection(markdown, predictions);
+            GenerateStatisticsSection(markdown, categorizations);
             
             // Spells by category
-            var categories = predictions.GroupBy(p => p.SpellCategory).OrderBy(g => g.Key);
+            var categories = categorizations.GroupBy(p => p.SpellCategory).OrderBy(g => g.Key);
             
             foreach (var categoryGroup in categories)
             {
@@ -817,14 +817,14 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates the statistics section of the markdown
         /// </summary>
-        private static void GenerateStatisticsSection(StringBuilder markdown, List<SpellPrediction> predictions)
+        private static void GenerateStatisticsSection(StringBuilder markdown, List<SpellCategorization> categorizations)
         {
             markdown.AppendLine("## Statistics");
             markdown.AppendLine();
             
             // Category distribution
-            var categoryStats = predictions.GroupBy(p => p.SpellCategory)
-                .Select(g => new { Category = g.Key, Count = g.Count(), Percentage = (double)g.Count() / predictions.Count * 100 })
+            var categoryStats = categorizations.GroupBy(p => p.SpellCategory)
+                .Select(g => new { Category = g.Key, Count = g.Count(), Percentage = (double)g.Count() / categorizations.Count * 100 })
                 .OrderByDescending(s => s.Count);
             
             markdown.AppendLine("### Spell Categories Distribution");
@@ -837,7 +837,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             markdown.AppendLine();
             
             // Effect types
-            var effectStats = predictions.GroupBy(p => p.EffectType)
+            var effectStats = categorizations.GroupBy(p => p.EffectType)
                 .Select(g => new { Effect = g.Key, Count = g.Count() })
                 .OrderByDescending(s => s.Count);
             
@@ -851,9 +851,9 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             markdown.AppendLine();
             
             // Power analysis
-            var avgPower = predictions.Average(p => p.Power);
-            var maxPower = predictions.Max(p => p.Power);
-            var minPower = predictions.Min(p => p.Power);
+            var avgPower = categorizations.Average(p => p.Power);
+            var maxPower = categorizations.Max(p => p.Power);
+            var minPower = categorizations.Min(p => p.Power);
             
             markdown.AppendLine("### Power Analysis");
             markdown.AppendLine($"- **Average Power**: {avgPower:F2}");
@@ -865,7 +865,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates a category section of the markdown
         /// </summary>
-        private static void GenerateCategorySection(StringBuilder markdown, SpellCategory category, List<SpellPrediction> spells)
+        private static void GenerateCategorySection(StringBuilder markdown, SpellCategory category, List<SpellCategorization> spells)
         {
             markdown.AppendLine($"## {category} Spells");
             markdown.AppendLine();
@@ -884,7 +884,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Generates a single spell entry in markdown
         /// </summary>
-        private static void GenerateSpellEntry(StringBuilder markdown, SpellPrediction spell)
+        private static void GenerateSpellEntry(StringBuilder markdown, SpellCategorization spell)
         {
             markdown.AppendLine($"### {spell.SpellName}");
             markdown.AppendLine();
@@ -1068,9 +1068,9 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
-        /// Predicts what type of spell a talisman combination would create
+        /// Categorizes what type of spell a talisman combination would create
         /// </summary>
-        private static SpellPrediction? PredictSpellFromCombination(List<ElementType> elements)
+        private static SpellCategorization? CategorizeSpellFromCombination(List<ElementType> elements)
         {
             try
             {
@@ -1084,7 +1084,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 var spellDescription = GenerateSpellDescription(elements, spellEffect, testCircle);
                 var spellCategory = CategorizeSpell(spellEffect, elements);
 
-                return new SpellPrediction
+                return new SpellCategorization
                 {
                     Elements = new List<ElementType>(elements),
                     SpellName = spellName,
@@ -1109,9 +1109,9 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         }
 
         /// <summary>
-        /// Predicts what type of spell a talisman combination with center talisman would create
+        /// Categorizes what type of spell a talisman combination with center talisman would create
         /// </summary>
-        private static SpellPrediction? PredictSpellFromCombinationWithCenter(List<ElementType> elements)
+        private static SpellCategorization? CategorizeSpellFromCombinationWithCenter(List<ElementType> elements)
         {
             try
             {
@@ -1131,7 +1131,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
                 var spellDescription = GenerateSpellDescription(elements, spellEffect, testCircle);
                 var spellCategory = CategorizeSpell(spellEffect, elements);
 
-                return new SpellPrediction
+                return new SpellCategorization
                 {
                     Elements = new List<ElementType>(elements),
                     SpellName = spellName,
@@ -1314,28 +1314,28 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Shows the spell prediction results
         /// </summary>
-        private static void ShowSpellPredictionResults(List<SpellPrediction> predictions)
+        private static void ShowSpellCategorizationResults(List<SpellCategorization> categorizations)
         {
-            Console.WriteLine("🎯 SPELL PREDICTION RESULTS");
+            Console.WriteLine("🎯 SPELL CATEGORIZATION RESULTS");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             Console.WriteLine();
 
             // Show only statistics, not individual spells (to avoid console clutter)
-            ShowSpellStatistics(predictions);
+            ShowSpellStatistics(categorizations);
         }
 
         /// <summary>
-        /// Shows spell prediction statistics
+        /// Shows spell categorization statistics
         /// </summary>
-        private static void ShowSpellStatistics(List<SpellPrediction> predictions)
+        private static void ShowSpellStatistics(List<SpellCategorization> categorizations)
         {
             Console.WriteLine("📊 SPELL STATISTICS");
             Console.WriteLine("═════════════════════════════════════════════════════════════════");
             Console.WriteLine();
 
             // Category distribution
-            var categoryStats = predictions.GroupBy(p => p.SpellCategory)
-                .Select(g => new { Category = g.Key, Count = g.Count(), Percentage = (double)g.Count() / predictions.Count * 100 })
+            var categoryStats = categorizations.GroupBy(p => p.SpellCategory)
+                .Select(g => new { Category = g.Key, Count = g.Count(), Percentage = (double)g.Count() / categorizations.Count * 100 })
                 .OrderByDescending(s => s.Count);
 
             Console.WriteLine("Spell Categories:");
@@ -1346,7 +1346,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine();
 
             // Effect type distribution
-            var effectStats = predictions.GroupBy(p => p.EffectType)
+            var effectStats = categorizations.GroupBy(p => p.EffectType)
                 .Select(g => new { Effect = g.Key, Count = g.Count() })
                 .OrderByDescending(s => s.Count);
 
@@ -1358,9 +1358,9 @@ namespace WuLangSpellcraft.Demo.Demonstrations
             Console.WriteLine();
 
             // Power analysis
-            var avgPower = predictions.Average(p => p.Power);
-            var maxPower = predictions.Max(p => p.Power);
-            var highPowerSpells = predictions.Count(p => p.Power > avgPower * 1.5);
+            var avgPower = categorizations.Average(p => p.Power);
+            var maxPower = categorizations.Max(p => p.Power);
+            var highPowerSpells = categorizations.Count(p => p.Power > avgPower * 1.5);
 
             Console.WriteLine($"Power Analysis:");
             Console.WriteLine($"  Average Power: {avgPower:F2}");
@@ -1370,7 +1370,7 @@ namespace WuLangSpellcraft.Demo.Demonstrations
 
             // Top combinations by talisman count
             Console.WriteLine("Most Effective Combinations by Talisman Count:");
-            var byTalismanCount = predictions.GroupBy(p => p.Elements.Count);
+            var byTalismanCount = categorizations.GroupBy(p => p.Elements.Count);
             foreach (var group in byTalismanCount.OrderBy(g => g.Key))
             {
                 var best = group.OrderByDescending(p => p.Power * p.Stability).First();
@@ -1398,7 +1398,10 @@ namespace WuLangSpellcraft.Demo.Demonstrations
         /// <summary>
         /// Represents a predicted spell from a talisman combination
         /// </summary>
-        private class SpellPrediction
+        /// <summary>
+        /// Represents a categorized spell analysis
+        /// </summary>
+        private class SpellCategorization
         {
             public List<ElementType> Elements { get; set; } = new();
             public string SpellName { get; set; } = "";
